@@ -1,0 +1,4 @@
+# 개발/CI용 패키지 (버전 고정)
+-r requirements.txt
+ruff==0.17.5
+pytest==9.2.0
