@@ -233,7 +233,7 @@ data/raw/
 *.index
 index/
 
-# --- 팀 문서(docs/team_rules.md 6장)에 따라 추가 ---
+# --- 팀 문서(docs/team_rules.md 5장)에 따라 추가 ---
 # Node (웹 화면)
 node_modules/
 .vite/
