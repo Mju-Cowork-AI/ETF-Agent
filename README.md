@@ -35,9 +35,9 @@ make check      # CI와 같은 검사 (ruff, compileall, pytest)
 
 - **브랜치 이름:** `타입/짧은-설명` — 타입은 `feat`, `fix`, `refactor`, `docs`, `chore`, `data`, `infra`, `prompt`
 - **커밋 메시지:** `타입: 내용` (한글 가능)
-- **작업 흐름:** 모든 작업은 브랜치 → `dev` PR. CI가 통과하면 작성자가 직접 squash 머지합니다. 리뷰는 권장입니다.
+- **작업 흐름:** 모든 작업은 브랜치 → `dev` PR. CI가 통과하면 작성자가 직접 머지해도 됩니다. 리뷰가 필요하면 보류하고 담당자에게 전달해 주세요.
 - **충돌 관리:** 작업 브랜치는 매일 `dev`를 받아 충돌을 정리합니다.
-- **릴리스:** `dev` → `main`은 selee1012만 merge commit으로 머지하고, 릴리스마다 태그(`v1.0`, `v1.1`…)를 붙입니다.
+- **릴리스:** `dev` → `main`은 Cloud Engineer만 가능하게 설정했습니다. (권한 필요하면 말씀해주세요)
 - **API 키:** 커밋 금지. 키는 Azure Key Vault에서 관리하고, 로컬은 `.env.example` 형식의 `.env`를 사용합니다.
 
 - 처음이라면: [docs/git-flow.md](docs/git-flow.md) — 브랜치 만들기부터 머지까지 따라 하는 Git 작업 흐름
