@@ -40,4 +40,5 @@ make check      # CI와 같은 검사 (ruff, compileall, pytest)
 - **릴리스:** `dev` → `main`은 selee1012만 merge commit으로 머지하고, 릴리스마다 태그(`v1.0`, `v1.1`…)를 붙입니다.
 - **API 키:** 커밋 금지. 키는 Azure Key Vault에서 관리하고, 로컬은 `.env.example` 형식의 `.env`를 사용합니다.
 
-전체 규칙과 예시는 [docs/dev-guide.md](docs/dev-guide.md)에 있습니다.
+- 처음이라면: [docs/git-flow.md](docs/git-flow.md) — 브랜치 만들기부터 머지까지 따라 하는 Git 작업 흐름
+- 전체 규칙: [docs/dev-guide.md](docs/dev-guide.md) — 로컬 환경, 릴리스, API 키, CI
