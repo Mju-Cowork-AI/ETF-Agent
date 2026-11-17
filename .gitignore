@@ -232,3 +232,26 @@ data/raw/
 *.faiss
 *.index
 index/
+
+# --- 팀 문서(docs/team_rules.md 6장)에 따라 추가 ---
+# Node (웹 화면)
+node_modules/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# DB 파일과 덤프
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+# 벡터 색인·문서 검색 자료
+chroma/
+docs_rag/
+# 투자설명서 등 외부 원본 PDF (재배포 금지)
+*.pdf
+# 평가 결과 원본 (요약 표만 문서로 커밋)
+eval/results/
+# 개인 Claude Code 로컬 설정
+.claude/settings.local.json

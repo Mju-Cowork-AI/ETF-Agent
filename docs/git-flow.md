@@ -41,7 +41,7 @@ git pull
 git switch -c feat/etf-search
 ```
 
-브랜치 이름은 `타입/짧은-설명`입니다. 타입은 `feat`, `fix`, `refactor`, `docs`, `chore`, `data`, `infra`, `prompt` 중 하나입니다.
+브랜치 이름은 `타입/짧은-설명`입니다. 타입은 `feat`, `fix`, `refactor`, `docs`, `chore`, `data`, `infra`, `prompt`, `eval`, `test` 중 하나입니다.
 
 ### 2단계. 작업하고 커밋하기
 
@@ -76,6 +76,7 @@ PR 제목도 `타입: 내용` 형식으로 적습니다. 이 제목이 `dev`에 
 
 1. PR 페이지에서 `ci` 검사가 초록색이 될 때까지 기다립니다 (보통 1분 이내).
 2. **Squash and merge** 버튼을 누릅니다. 승인은 필수가 아니지만, 헷갈리는 변경은 팀원에게 리뷰를 부탁하세요.
+   - **예외:** 개인정보 차단, 가드(검증), 숫자 대조, 데이터 파이프라인을 고치는 PR은 **팀원 1명의 승인**을 받은 뒤 머지합니다([dev-guide.md](dev-guide.md) 4장).
 3. 작업 브랜치는 GitHub에서 자동으로 삭제됩니다.
 
 명령으로 하려면:
