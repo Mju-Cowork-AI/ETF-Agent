@@ -255,3 +255,5 @@ docs_rag/
 eval/results/
 # 개인 Claude Code 로컬 설정
 .claude/settings.local.json
+# 시험용 평가 문항(11-26 시험용 평가 직전에 커밋)
+eval/sets/private/
