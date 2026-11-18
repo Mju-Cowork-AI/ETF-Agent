@@ -1,6 +1,6 @@
 # ETF-Agent: ETF 질의응답 챗봇
 
-> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. 예: `https://<앱 이름>.<배포처 주소>`)
+> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. Azure Container Apps 주소 형식: `https://<앱 이름>.<환경 고유 이름>.<리전>.azurecontainerapps.io`)
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
@@ -16,6 +16,7 @@
 - **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 결과가 부족하면 한 번 더 계획하고, 답을 쓴 뒤 다른 LLM이 검증합니다. 반복 횟수와 안전 경계는 코드가 제한합니다.
 - **설계 원칙:** LLM은 숫자를 만들지 않습니다. 수치는 DB에서만 가져오고, 기준일과 투자 고지는 코드가 붙입니다.
 - **기술 스택:** Python, FastAPI, LangGraph, Postgres(pgvector), React, Docker, Azure OpenAI
+- **배포:** API·웹은 **Azure Container Apps**(최소 복제본 1), DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
 - **배경:** LLM 기반 ETF 질의응답 챗봇 구축 RFP를 바탕으로 합니다. 자세한 기획은 [docs/plan.md](docs/plan.md)에 있습니다.
 
 ## 팀원별 역할
@@ -31,7 +32,7 @@
 
 ## 로컬 실행 방법 (FastAPI 기반)
 
-> **아직 확정되지 않은 값이 있습니다.** FastAPI 기반 코드는 채팅방에서 정한 방식(11-18 18:00까지)으로 이 저장소에 들여옵니다. 그 전까지 아래의 경로·명령은 **들여올 코드 기준이며 "확인 필요"** 표시가 있는 것은 들여온 뒤 고칩니다.
+> **아직 확정되지 않은 값이 있습니다.** FastAPI 기반 코드는 FastAPI 구조 그대로, git 이력을 살려 이 저장소에 들여옵니다(11-18 결정). 그 전까지 아래의 경로·명령은 **들여올 코드 기준이며 "확인 필요"** 표시가 있는 것은 들여온 뒤 고칩니다.
 
 1. **필요한 도구**
    - Git, GNU Make
@@ -48,7 +49,7 @@
    - `make setup`은 [uv](https://docs.astral.sh/uv/)가 있으면 Python 3.14를 자동으로 받아 씁니다. 3.11로 만든 `.venv`가 있으면 `make clean` 후 다시 `make setup`을 실행합니다.
    - `make help`로 전체 명령을 봅니다. make를 쓸 수 없으면(Windows PowerShell 등) [docs/dev-guide.md](docs/dev-guide.md) 1장을 봅니다.
 3. **환경변수:** `make setup`이 만든 `.env`에 값을 채웁니다.
-   - Azure 엔드포인트·키·배포 이름은 Azure 키 관리자에게 받습니다. 보관 규칙은 [docs/dev-guide.md](docs/dev-guide.md) 6장. **키는 절대 커밋하지 않습니다.**
+   - Azure 엔드포인트·키·배포 이름은 Key Vault에서 받습니다(키 관리자: Cloud Engineer). 보관 규칙은 [docs/dev-guide.md](docs/dev-guide.md) 6장. **키는 절대 커밋하지 않습니다.**
    - 변수 이름은 들여온 코드의 설정 이름에 맞춰 바뀝니다(**확인 필요**).
 4. **실행**(DB·API·웹을 띄우고 마이그레이션·샘플 적재까지 수행)
    ```bash
