@@ -11,5 +11,5 @@
 <!-- 예: Closes #12 / 없으면 "없음" -->
 
 ---
-- [ ] `make check` 통과 (ruff, compileall, pytest)
+- [ ] `make check` 통과 (ruff, eslint, prettier, tsc, pytest)
 - [ ] API 키 등 비밀 값이 포함되지 않음

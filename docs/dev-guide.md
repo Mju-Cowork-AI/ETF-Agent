@@ -6,44 +6,47 @@ Git 작업 순서를 단계별로 따라 하려면 [git-flow.md](git-flow.md)를
 
 ### 준비물
 - Git, GNU Make
-- [uv](https://docs.astral.sh/uv/) (권장) 또는 Python 3.14
+- Docker, Docker Compose v2.24 이상
+- [uv](https://docs.astral.sh/uv/) (Python 3.14는 uv가 자동으로 받습니다)
+- Node.js 24
+
+Windows에서는 `make`와 bash 스크립트를 쓰므로 **WSL2** 안에서 실행합니다.
 
 ### 설치
 
 ```bash
-make setup
+scripts/setup-dev.sh
 ```
 
-`scripts/setup-dev.sh`가 실행되어 다음을 준비합니다.
+다음을 준비합니다.
 
-1. `.venv/` 가상환경 (Python 3.14)
-2. `requirements.txt`, `requirements-dev.txt` 설치
+1. `apps/api/.venv/` 가상환경과 API 의존성 (`uv sync --locked`)
+2. `apps/web/node_modules/` 웹 의존성 (`npm ci`)
 3. `.env`가 없으면 `.env.example`을 복사해 생성
 
-여러 번 실행해도 안전합니다. 의존성이 바뀐 브랜치로 옮겼다면 다시 `make setup`을 실행하세요.
+여러 번 실행해도 안전합니다. 의존성이 바뀐 브랜치로 옮겼다면 다시 실행하세요. `.env`가 이미 있으면 `make setup`만 실행해도 됩니다(1, 2번만 수행).
+
+### 실행
+
+```bash
+./scripts/run-fake.sh       # API 키 없이 가짜 모델로 DB·API·웹 실행
+./scripts/run-local.sh      # 실제 모델로 실행(.env.local 필요)
+```
+
+자세한 실행 방법과 주의할 점은 [README.md](../README.md)에 있습니다.
 
 ### 자주 쓰는 명령
 
 | 명령 | 하는 일 |
 |---|---|
-| `make check` | CI와 동일한 검사 (lint + compile + test). PR 올리기 전에 실행 |
-| `make lint` | `ruff check .` |
-| `make format` | ruff 자동 수정 + 포맷 |
-| `make test` | `pytest -q` |
-| `make clean` | `.venv`와 캐시 삭제 |
+| `make check` | CI와 동일한 검사 (lint + test). PR 올리기 전에 실행 |
+| `make lint` | ruff 검사·포맷 검사(`apps/api`, `jobs`, `ml`, `scripts`) + 웹 eslint·prettier·tsc(`apps/web`) |
+| `make fmt` | ruff 자동 수정 + 포맷, prettier 포맷 |
+| `make test` | API 테스트(`apps/api/tests`). 가짜 모델로 실행하며 DB 컨테이너가 떠 있어야 함 |
+| `make up PROVIDER=fake` | DB·API·웹 컨테이너 실행 |
+| `make down` | 컨테이너 종료(데이터 볼륨 유지) |
 
-가상환경을 직접 쓰려면 `source .venv/bin/activate` 후 `python`, `pytest` 등을 실행합니다.
-
-### make를 쓸 수 없는 경우 (예: Windows PowerShell)
-
-```powershell
-py -3.14 -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
-copy .env.example .env
-.venv\Scripts\ruff check .
-.venv\Scripts\python -m compileall -q app agent data pipeline eval
-.venv\Scripts\pytest -q
-```
+`make test`는 `_test`로 끝나는 테스트 DB를 지우고 다시 만듭니다. `make help`로 전체 명령을 봅니다.
 
 ## 2. 브랜치
 
@@ -151,5 +154,12 @@ KV_NAME=<Key Vault 이름> scripts/set-secret.sh DART_API_KEY
 
 ## 8. CI
 
-PR과 `dev`/`main` push마다 `ci` 작업이 실행됩니다: `ruff check .` → `python -m compileall` → `pytest -q`.
+PR과 `dev`/`main` push마다 `ci` 작업이 실행됩니다. `make check`와 같은 검사입니다.
+
+1. main 보호 가드: `main`으로는 `dev`에서 온 PR만 통과
+2. API: Python 3.14 + uv로 `apps/api`에서 `uv sync --locked`
+3. `ruff check`, `ruff format --check` (`apps/api`, `jobs`, `ml`, `scripts`. 설정은 `apps/api/pyproject.toml`)
+4. `pytest` (`apps/api/tests`. pgvector 서비스 컨테이너를 DB로 쓰고 `LLM_PROVIDER=fake`, `EMBEDDING_PROVIDER=fake`로 실행)
+5. 웹: Node 24로 `apps/web`에서 `npm ci` → `lint` → `format:check` → `typecheck`
+
 CI는 실제 LLM이나 외부 API를 호출하지 않으며 시크릿을 사용하지 않습니다. 외부 호출이 필요한 테스트는 모킹하세요.
