@@ -36,7 +36,7 @@
 1. **필요한 도구**
    - Git, GNU Make
    - Docker, Docker Compose v2.24 이상
-   - Python: FastAPI 기반 코드는 3.14, 이 저장소 CI는 3.11 → **확인 필요**(코드 들여오기 뒤 하나로 맞춤)
+   - Python 3.14 (저장소 CI·로컬 환경과 FastAPI 기반 코드가 같은 버전)
    - [uv](https://docs.astral.sh/uv/), Node.js 24(웹 화면 테스트·린트용)
 2. **받기와 개발 환경**
    ```bash
@@ -45,7 +45,7 @@
    git switch dev
    make setup      # .venv 생성 + 의존성 설치 + .env가 없으면 .env.example을 복사
    ```
-   - `make setup`은 [uv](https://docs.astral.sh/uv/)가 있으면 Python을 자동으로 받아 씁니다. 지금은 3.11 기준이며, 코드 들여오기 뒤 바뀔 수 있습니다.
+   - `make setup`은 [uv](https://docs.astral.sh/uv/)가 있으면 Python 3.14를 자동으로 받아 씁니다. 3.11로 만든 `.venv`가 있으면 `make clean` 후 다시 `make setup`을 실행합니다.
    - `make help`로 전체 명령을 봅니다. make를 쓸 수 없으면(Windows PowerShell 등) [docs/dev-guide.md](docs/dev-guide.md) 1장을 봅니다.
 3. **환경변수:** `make setup`이 만든 `.env`에 값을 채웁니다.
    - Azure 엔드포인트·키·배포 이름은 Azure 키 관리자에게 받습니다. 보관 규칙은 [docs/dev-guide.md](docs/dev-guide.md) 6장. **키는 절대 커밋하지 않습니다.**
