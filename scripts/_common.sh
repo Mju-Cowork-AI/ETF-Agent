@@ -14,11 +14,16 @@ rand_hex() { LC_ALL=C tr -dc 'a-f0-9' </dev/urandom | head -c "$1"; }
 set_env_if_empty() {
   local key="$1" value="$2" tmp
   if grep -qE "^${key}=" .env; then
+    # mv로 바꿔 치우면 mktemp의 600 권한이 .env에 남아 api 컨테이너(uid 10001)가 못 읽는다(리눅스·WSL).
+    # 내용만 덮어써서 .env의 원래 권한을 지킨다.
     tmp="$(mktemp)"
-    awk -v k="$key" -v v="$value" '
+    if awk -v k="$key" -v v="$value" '
       index($0, k "=") == 1 && length($0) == length(k) + 1 { print k "=" v; next }
       { print }
-    ' .env >"$tmp" && mv "$tmp" .env
+    ' .env >"$tmp"; then
+      cat "$tmp" >.env
+    fi
+    rm -f "$tmp"
   else
     printf '%s=%s\n' "$key" "$value" >>.env
   fi
