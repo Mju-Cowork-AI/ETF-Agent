@@ -6,7 +6,7 @@ Git 작업 순서를 단계별로 따라 하려면 [git-flow.md](git-flow.md)를
 
 ### 준비물
 - Git, GNU Make
-- [uv](https://docs.astral.sh/uv/) (권장) 또는 Python 3.11
+- [uv](https://docs.astral.sh/uv/) (권장) 또는 Python 3.14
 
 ### 설치
 
@@ -16,7 +16,7 @@ make setup
 
 `scripts/setup-dev.sh`가 실행되어 다음을 준비합니다.
 
-1. `.venv/` 가상환경 (Python 3.11)
+1. `.venv/` 가상환경 (Python 3.14)
 2. `requirements.txt`, `requirements-dev.txt` 설치
 3. `.env`가 없으면 `.env.example`을 복사해 생성
 
@@ -37,7 +37,7 @@ make setup
 ### make를 쓸 수 없는 경우 (예: Windows PowerShell)
 
 ```powershell
-py -3.11 -m venv .venv
+py -3.14 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt -r requirements-dev.txt
 copy .env.example .env
 .venv\Scripts\ruff check .
