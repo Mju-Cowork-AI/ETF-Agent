@@ -125,20 +125,17 @@ make down                        # 컨테이너 종료, 볼륨 유지
 
 ## 폴더 구조
 
-지금은 저장소 뼈대 구조입니다. 코드 들여오기 뒤 Cloud Engineer가 갱신합니다([docs/roles.md](docs/roles.md) 4장).
-
 | 폴더 | 용도 |
 |---|---|
-| `app/` | 서비스 진입점 (API/UI) |
-| `agent/` | 에이전트 로직 |
-| `agent/prompts/` | 프롬프트 |
-| `data/` | 데이터 로더·스키마 (`data/raw/` 원본은 커밋 안 함) |
-| `pipeline/` | 수집·전처리·인덱싱 파이프라인 |
-| `eval/` | 평가 셋과 평가 스크립트 |
-| `infra/` | 배포·인프라 설정 |
+| `apps/api/` | FastAPI 서버: 에이전트, LLM 호출 모듈(`app/llm`), 문서 검색, 저장소, 마이그레이션, 테스트 |
+| `apps/web/` | React 채팅·운영 화면 |
+| `jobs/` | 샘플 시드, 문서 적재, 외부 데이터 수집 |
+| `ml/` | 오프라인 평가(`make eval`) |
+| `prompts/` | 시스템 프롬프트, 가드 규칙, 답변 템플릿 |
+| `data/` | 샘플 데이터와 평가 데이터셋 (`data/raw/` 원본은 커밋 안 함) |
+| `infra/` | 로컬 Docker와 배포 설정 예시 |
+| `scripts/` | 실행 스크립트, 개발 환경 준비, 키 등록 |
 | `docs/` | 문서 |
-| `tests/` | 테스트 |
-| `scripts/` | 보조 스크립트 |
 
 ## 팀 규칙과 문서
 
