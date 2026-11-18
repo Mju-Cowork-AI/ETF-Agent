@@ -89,6 +89,9 @@ lint: ## ruff(api·jobs·ml·scripts) + eslint + prettier + tsc
 	cd $(API_DIR) && uv run ruff check $(PY_DIRS) && uv run ruff format --check $(PY_DIRS)
 	cd $(WEB_DIR) && npm run lint && npm run format:check && npm run typecheck
 
+.PHONY: check
+check: lint test ## CI와 같은 검사(lint + test). PR 올리기 전에 실행(db 컨테이너 필요: make up)
+
 .PHONY: fmt
 fmt: ## 자동 포맷(ruff, prettier)
 	cd $(API_DIR) && uv run ruff check --fix $(PY_DIRS) && uv run ruff format $(PY_DIRS)
