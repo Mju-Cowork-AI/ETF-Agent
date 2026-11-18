@@ -23,8 +23,8 @@
 | 역할 | 이름 | 맡은 일 |
 |---|---|---|
 | AI Solutions Architect | | 아키텍처·재계획 루프 설계, 외부 호출 전 개인정보 차단, 가드레일 기준, 레드팀·정상 질문 평가셋, 일정·범위 관리, README |
-| AI Engineer | | 에이전트 그래프(계획·재계획·합성·검증), 숫자 대조, 프롬프트, Azure 모델 연결 |
-| Cloud Engineer | | 배포·시크릿, 하루 질문 상한, 예산 알림·사용량 모니터링, 평가 실행 운영, 사용자 테스트 진행 |
+| AI Engineer | | 에이전트 그래프(계획·재계획·합성·검증), 숫자 대조, 프롬프트, Azure 모델 연결, 평가 실행 운영 |
+| Cloud Engineer | | 저장소 관리, 배포·시크릿, 하루 질문 상한, 예산 알림·사용량 모니터링, 평가 실행 환경(배포 URL·키) 지원, 사용자 테스트 진행 |
 | Data Scientist | | ETF 데이터 수집·검증·적재, 문서 검색(RAG) 색인·튜닝, 일반 평가셋 정답값 |
 
 역할별 상세는 [docs/roles.md](docs/roles.md)에 있습니다.
@@ -67,6 +67,15 @@
    ```
    - `make check`가 통과하면 CI도 통과합니다. PR 올리기 전에 실행합니다.
 8. **종료:** `./scripts/run-local.sh down`(데이터 볼륨 유지, 경로는 확인 필요)
+
+### 실행할 때 주의할 점
+
+- **Windows:** `make`와 bash 스크립트를 쓰므로 **WSL2** 안에서 실행합니다.
+- **Docker Compose v2.24 이상**이 필요합니다(`docker compose version`으로 확인).
+- **포트 충돌:** 로컬 Postgres가 5432 포트를 쓰고 있으면 충돌합니다. `.env`의 `POSTGRES_PORT`를 다른 값으로 바꿉니다.
+- **`make test`:** DB가 떠 있어야 하고, `_test`로 끝나는 테스트 DB를 지우고 다시 만듭니다.
+- **데이터 갱신 뒤:** `make seed`, `make ingest`, `make collect` 다음에는 **`make restart`**를 실행합니다. 안 하면 캐시 때문에 이전 값이 나옵니다.
+- **Azure 연결:** `LLM_MODEL`에는 모델 이름이 아니라 **배포 이름**을 넣고, base URL은 **`/openai/v1/`로 끝나야** 합니다.
 
 ## 폴더 구조
 
