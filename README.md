@@ -68,6 +68,15 @@
    - `make check`가 통과하면 CI도 통과합니다. PR 올리기 전에 실행합니다.
 8. **종료:** `./scripts/run-local.sh down`(데이터 볼륨 유지, 경로는 확인 필요)
 
+### 실행할 때 주의할 점
+
+- **Windows:** `make`와 bash 스크립트를 쓰므로 **WSL2** 안에서 실행합니다.
+- **Docker Compose v2.24 이상**이 필요합니다(`docker compose version`으로 확인).
+- **포트 충돌:** 로컬 Postgres가 5432 포트를 쓰고 있으면 충돌합니다. `.env`의 `POSTGRES_PORT`를 다른 값으로 바꿉니다.
+- **`make test`:** DB가 떠 있어야 하고, `_test`로 끝나는 테스트 DB를 지우고 다시 만듭니다.
+- **데이터 갱신 뒤:** `make seed`, `make ingest`, `make collect` 다음에는 **`make restart`**를 실행합니다. 안 하면 캐시 때문에 이전 값이 나옵니다.
+- **Azure 연결:** `LLM_MODEL`에는 모델 이름이 아니라 **배포 이름**을 넣고, base URL은 **`/openai/v1/`로 끝나야** 합니다.
+
 ## 폴더 구조
 
 지금은 저장소 뼈대 구조입니다. 코드 들여오기 뒤 Cloud Engineer가 갱신합니다([docs/roles.md](docs/roles.md) 4장).

@@ -4,7 +4,7 @@
 
 ## 1. 무엇을 만드는가
 
-국내 ETF 질문에 **조회한 근거로만** 답하고, **검증을 통과한 답만** 내보내는 에이전트 챗봇입니다. 기반은 **FastAPI 기반**(Python + FastAPI + Postgres(pgvector) + React + Docker + LangGraph, D1 결정)입니다. 마감은 2026-11-30(월)입니다.
+국내 ETF 질문에 **조회한 근거로만** 답하고, **검증을 통과한 답만** 내보내는 에이전트 챗봇입니다. 기반은 **FastAPI 기반**(Python + FastAPI + Postgres(pgvector) + React + Docker + LangGraph, D1 결정)입니다. 제출 마감은 2026-11-28(토), 발표는 11-30(월)입니다.
 
 ## 2. 설계 원칙 (어기면 안 됨)
 

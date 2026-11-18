@@ -75,7 +75,7 @@
 ## 10. 도구 규약
 
 - 린트·포맷·검사(`make check`)는 [dev-guide.md](dev-guide.md) 1·8장을 따릅니다.
-- 팀 추가: 웹 화면(TypeScript) 린트와 Python 버전은 코드 들여오기 뒤 Cloud Engineer가 맞춥니다([roles.md](roles.md) 4장).
+- 팀 추가: Python은 3.14입니다(D18). 웹 화면(TypeScript) 린트는 코드 들여오기 뒤 Cloud Engineer가 맞춥니다([roles.md](roles.md) 4장).
 
 ## 11. 소통
 
