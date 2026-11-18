@@ -5,7 +5,7 @@
 - 출처 표시: **[A]** Streamlit 기반, **[B]** FastAPI 기반, **[새로]** 이번에 추가
 - 규칙 검사는 문자열 패턴이라 바꿔 말한 표현은 놓칩니다. 그런 표현은 가드 ② 검증 모델이 판정합니다([plan.md](plan.md) 2-5).
 - 이 파일을 고치는 PR은 가드 변경이라 팀원 1명의 승인이 필요합니다([dev-guide.md](dev-guide.md) 4장).
-- 레드팀 문항의 `forbidden_categories`는 아래 범주 id를 씁니다([eval/sets/README.md](../eval/sets/README.md)).
+- 레드팀 문항의 `forbidden_categories`는 아래 범주 id를 씁니다([data/eval-sets/README.md](../data/eval-sets/README.md)).
 
 ## 0. 적용 범위와 공통 규칙
 
