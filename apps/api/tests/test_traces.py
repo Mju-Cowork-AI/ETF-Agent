@@ -12,7 +12,8 @@ from app.repositories.models import Trace
 from app.settings import AppEnv, Settings, Tracer
 from tests.sse import parse_sse
 
-RAW_QUERY = "샘플 코스피200 괴리율 알려줘 제 번호는 010-2222-3333 입니다 zz-unique-marker"
+# 개인정보가 든 질문은 전처리에서 차단되므로(트레이스는 test_pii_block.py) 여기서는 원문 표식만 본다.
+RAW_QUERY = "샘플 코스피200 괴리율 알려줘 zz-unique-marker"
 
 
 async def test_trace_has_no_raw_query(client: AsyncClient, user_headers: dict) -> None:
@@ -26,11 +27,10 @@ async def test_trace_has_no_raw_query(client: AsyncClient, user_headers: dict) -
     assert trace.guard_verdict == "pass"
     assert trace.latency_ms is not None and trace.model
     assert "etf:900010" in trace.retrieved_doc_ids
-    # 어떤 컬럼에도 질의 원문·개인정보가 없다
+    # 어떤 컬럼에도 질의 원문이 없다
     for col in Trace.__table__.columns:
         value = str(getattr(trace, col.key))
         assert "zz-unique-marker" not in value
-        assert "010-2222-3333" not in value
 
     async with get_engine().connect() as conn:
         cols = await conn.run_sync(lambda c: [x["name"] for x in inspect(c).get_columns("traces")])
