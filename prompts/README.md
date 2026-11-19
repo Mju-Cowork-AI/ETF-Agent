@@ -12,6 +12,6 @@
 | `guard/disclaimers.yaml` | 합성(가드 ①이 결과를 검사) | 의도별 필수 고지 |
 | `guard/judge.md` | 가드 ② | 검증 모델 JSON 판정 지시 |
 | `templates/high_risk/*.md` | 가드 ③ | 고위험 의도 고정 답변(준법감시 승인 전 초안) |
-| `templates/*.md` | 그래프·채팅 서비스 | 추천(Phase 3 안내)·범위 밖·차단·안전 답변 |
+| `templates/*.md` | 그래프·채팅 서비스 | 추천(거절·비교 기준 안내)·범위 밖·차단·안전 답변 |
 
 템플릿의 `{inquiry_channel}`은 설정값 `INQUIRY_CHANNEL`로 바뀐다.
