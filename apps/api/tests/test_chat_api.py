@@ -15,7 +15,7 @@ from app.llm.fake import FakeLLM
 from app.repositories import conversations as conv_repo
 from app.repositories.models import Conversation, Feedback, Message, Trace
 from app.services import chat as chat_service
-from app.services.chat import ChatRequest, _public_reasons, stream_chat
+from app.services.chat import PII_BLOCKED_MESSAGE, ChatRequest, _public_reasons, stream_chat
 from tests.sse import answer_text, parse_sse
 
 
@@ -126,13 +126,17 @@ async def test_feedback_like_and_correction(client: AsyncClient, user_headers: d
     assert fb.request_id == events[-1][1]["request_id"]
 
 
-async def test_user_message_is_masked(client: AsyncClient, user_headers: dict) -> None:
+async def test_user_message_with_pii_is_not_stored(client: AsyncClient, user_headers: dict) -> None:
+    # 개인정보가 든 질문은 외부 호출 전에 차단되고, 원문 대신 고정 문구로 저장된다
+    # (마스킹 자체는 test_privacy.py, 차단 케이스 전체는 test_pii_block.py).
     events = await chat(client, user_headers, "제 메일 hong@example.com 인데 괴리율이 뭐야?")
+    assert events[-1][1]["intents"] == ["pii"]
     rid = events[-1][1]["request_id"]
     async with get_sessionmaker()() as s:
         rows = (await s.scalars(select(Message).where(Message.request_id == rid))).all()
     user_msg = next(m for m in rows if m.role == "user")
-    assert "hong@example.com" not in user_msg.content and "[EMAIL]" in user_msg.content
+    assert user_msg.content == PII_BLOCKED_MESSAGE
+    assert all("hong@example.com" not in m.content for m in rows)
 
 
 async def test_dev_login_admin_role(client: AsyncClient) -> None:
