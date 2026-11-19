@@ -40,6 +40,51 @@ def find_pii(text: str) -> list[str]:
     return kinds
 
 
+# ---------- 외부 호출 전 차단(입력 검사) ----------
+# mask_pii(저장·트레이스용)와 따로 둔다. 차단은 구분자 없는 카드번호·하이픈 없는 계좌번호까지 본다.
+# 오탐을 줄이려고 카드는 Luhn 검사 통과나 가까운 '카드' 단어를, 계좌는 가까운 '계좌' 단어를 요구한다.
+# 숫자 뒤에 단위(원·주·%·년 등)나 소수점이 붙으면 금액·수량·비율로 보고, 앞에 영문자가 붙으면
+# ISIN(KR7069500007) 일부로 보아 제외한다. 종목코드(6자리)·날짜(8자리)는 자릿수가 달라 걸리지 않는다.
+_NOT_UNIT = r"(?!\d|[.,]\d|\s*(?:원|주|만|억|조|%|개|년|월|일))"
+_BARE_CARD = re.compile(r"(?<![A-Za-z0-9])\d{16}" + _NOT_UNIT)
+_NEAR = 15  # '카드'·'계좌' 단어와 숫자 사이 최대 글자 수
+_BARE_ACCOUNT = re.compile(
+    rf"계좌[^\d\n]{{0,{_NEAR}}}(?<![A-Za-z0-9])\d{{10,14}}{_NOT_UNIT}"
+    rf"|(?<![A-Za-z0-9])\d{{10,14}}{_NOT_UNIT}[^\d\n]{{0,{_NEAR}}}계좌"
+)
+
+
+def _luhn_ok(digits: str) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2:
+            d = d * 2 - 9 if d > 4 else d * 2
+        total += d
+    return total % 10 == 0
+
+
+def _has_bare_card(text: str) -> bool:
+    for m in _BARE_CARD.finditer(text):
+        near = text[max(0, m.start() - _NEAR) : m.end() + _NEAR]
+        if _luhn_ok(m.group()) or "카드" in near:
+            return True
+    return False
+
+
+def find_pii_to_block(text: str) -> list[str]:
+    """외부 호출(LLM·임베딩) 전에 막을 개인정보 종류. 값은 돌려주지 않는다.
+
+    반드시 원문(정규화 전)에 쓴다. 정규화는 '@'·'_'를 지워 이메일을 놓친다.
+    """
+    kinds = find_pii(text)
+    if "CARD" not in kinds and _has_bare_card(text):
+        kinds.append("CARD")
+    if "ACCOUNT" not in kinds and _BARE_ACCOUNT.search(text):
+        kinds.append("ACCOUNT")
+    return kinds
+
+
 def mask_pii(text: str) -> str:
     """이메일·주민번호·카드·전화·계좌번호를 [EMAIL] 같은 자리표시로 바꾼다."""
     if not text:

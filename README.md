@@ -1,6 +1,6 @@
 # ETF-Agent: ETF 질의응답 챗봇
 
-> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. 예: `https://<앱 이름>.<배포처 주소>`)
+> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. Azure Container Apps 주소 형식: `https://<앱 이름>.<환경 고유 이름>.<리전>.azurecontainerapps.io`)
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
@@ -16,6 +16,7 @@
 - **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 결과가 부족하면 한 번 더 계획하고, 답을 쓴 뒤 다른 LLM이 검증합니다. 반복 횟수와 안전 경계는 코드가 제한합니다.
 - **설계 원칙:** LLM은 숫자를 만들지 않습니다. 수치는 DB에서만 가져오고, 기준일과 투자 고지는 코드가 붙입니다.
 - **기술 스택:** Python, FastAPI, LangGraph, Postgres(pgvector), React, Docker, Azure OpenAI
+- **배포:** API·웹은 **Azure Container Apps**(최소 복제본 1), DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
 - **배경:** LLM 기반 ETF 질의응답 챗봇 구축 RFP를 바탕으로 합니다. 자세한 기획은 [docs/plan.md](docs/plan.md)에 있습니다.
 
 ## 팀원별 역할
@@ -55,6 +56,8 @@ cp .env.local.example .env.local
 # .env.local의 LLM_API_KEY 주석을 해제하고 API 키 입력
 ./scripts/run-local.sh
 ```
+
+- Azure 엔드포인트·키·배포 이름은 Key Vault에서 받습니다(키 관리자: Cloud Engineer). 보관 규칙은 [docs/dev-guide.md](docs/dev-guide.md) 6장. **키는 절대 커밋하지 않습니다.**
 
 기본 모델은 `gpt-5.4-nano`, 임베딩은 `text-embedding-3-small`(1024차원)입니다. 질문과 검색된 문서 일부가 모델 제공자에게 전송됩니다. `.env.local.example`은 로컬 일반 대화 모드를 켭니다. 끄려면 `.env.local`에서 `GENERAL_CHAT_ENABLED=false`로 설정하세요.
 
@@ -110,7 +113,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 
 ### 현재 범위와 배포
 
-로컬 실행이 중심인 MVP입니다. 배포 구성은 Azure와 Supabase를 계획하고 있으며, 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
+로컬 실행이 중심인 MVP입니다. 배포는 API·웹을 Azure Container Apps(최소 복제본 1)에, DB를 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다(공개 URL의 로그인 없는 접근은 11-21 배포 리허설에서 추가). 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
 
 가드의 검증 모델을 호출하지 못하거나 판정 결과를 두 번 연속 해석하지 못하면 답변을 내보내지 않고 안전 답변으로 대체합니다. 캐시는 프로세스별 메모리에 있으므로 별도 프로세스의 데이터 적재나 다른 API 인스턴스에 캐시 삭제가 전파되지 않습니다. 로컬에서는 `make restart`로 해결하고, API 인스턴스를 여러 개 띄우는 배포에서는 공유 캐시(Redis 등)가 필요합니다.
 
