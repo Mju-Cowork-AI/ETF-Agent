@@ -21,13 +21,21 @@ class Intent(StrEnum):
     OUT_OF_SCOPE = "out_of_scope"
     # 해킹·불법 행위 방법 요청, 지침 무력화(프롬프트 인젝션) 시도: 생성 없이 즉시 차단 # P1-AG-06
     BLOCKED = "blocked"
+    # 질문에 개인정보: 외부 호출(분류 LLM·임베딩) 전에 전처리에서 막는다. 분류 대상이 아니다.
+    PII = "pii"
     # 일반 대화(GENERAL_CHAT_ENABLED, 로컬 전용). 분류기가 내지 않고 오케스트레이터가 바꿔 넣는다.
     GENERAL = "general"
 
 
 # 전문 에이전트가 처리하는 의도(나머지는 템플릿)
 AGENT_INTENTS = (Intent.ETF_INFO, Intent.FAQ, Intent.DISCLOSURE)
-TEMPLATE_INTENTS = (Intent.BLOCKED, Intent.HIGH_RISK, Intent.RECOMMENDATION, Intent.OUT_OF_SCOPE)
+TEMPLATE_INTENTS = (
+    Intent.PII,
+    Intent.BLOCKED,
+    Intent.HIGH_RISK,
+    Intent.RECOMMENDATION,
+    Intent.OUT_OF_SCOPE,
+)
 
 
 class Level(StrEnum):
@@ -123,6 +131,7 @@ class GraphState(TypedDict, total=False):
     request_id: str
     query: str  # 원문: 메모리 안에서만 쓰고 저장·로그·트레이스에 남기지 않는다
     normalized: str
+    pii_kinds: list[str]  # 원문에서 찾은 개인정보 종류(값 없음). 있으면 분류 없이 template으로
     level: str
     history: list[dict[str, Any]]  # [{"role","content"(마스킹됨),"meta"}]
     context_tickers: list[str]  # 직전 턴 엔티티(멀티턴)

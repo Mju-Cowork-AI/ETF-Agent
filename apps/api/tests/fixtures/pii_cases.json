@@ -1,0 +1,333 @@
+{
+  "_comment": [
+    "개인정보 차단 테스트 케이스(초안, AI Solutions Architect). 외부 API 호출 전 입력 검사에 씁니다.",
+    "모든 값은 가상입니다. 주민·외국인등록번호는 없는 날짜(2월 30일 등), 카드번호는 Luhn 검사 실패 값, 이메일은 예약 도메인(example.*), 전화번호는 국번을 0으로 시작하게 만들었습니다. 계좌번호는 실재 여부를 확인할 방법이 없어 앞자리를 000으로 두었습니다.",
+    "source: A 테스트 / B 테스트 = 두 기반 코드의 테스트에 있던 사례, (값 바꿈) = 형태는 그대로 두고 숫자만 가상 값으로 바꿈, 새로 = 이번에 추가."
+  ],
+  "cases": [
+    {
+      "id": "p01",
+      "category": "rrn",
+      "text": "주민번호 990230-1384725 인데 제 나이에 맞는 ETF 알려줘",
+      "expect_blocked": true,
+      "source": "A·B 테스트(값 바꿈)",
+      "note": "2월 30일"
+    },
+    {
+      "id": "p02",
+      "category": "rrn",
+      "text": "9109311275836 이걸로 본인 확인하고 나스닥100 ETF 보수 알려줘",
+      "expect_blocked": true,
+      "source": "A 테스트(값 바꿈)",
+      "note": "하이픈 없음, 9월 31일"
+    },
+    {
+      "id": "p03",
+      "category": "rrn",
+      "text": "제 주민등록번호는 850431 - 2156093 입니다. 연금계좌에서 ETF 살 수 있나요?",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "하이픈 앞뒤 공백, 4월 31일"
+    },
+    {
+      "id": "p04",
+      "category": "rrn",
+      "text": "아이 명의로 사 주려는데 000631-3492817 로 가입 가능한 ETF 있어?",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "2000년대생 성별 숫자 3, 6월 31일"
+    },
+    {
+      "id": "p05",
+      "category": "foreign_rrn",
+      "text": "외국인등록번호 921131-5274036 인데 국내 ETF 살 수 있어?",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "11월 31일. A 패턴은 뒤 첫자리 1~4만 잡음"
+    },
+    {
+      "id": "p06",
+      "category": "foreign_rrn",
+      "text": "880230-6019284 이 번호로 계좌 열었는데 월배당 ETF 분배금 언제 들어와?",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "2월 30일"
+    },
+    {
+      "id": "p07",
+      "category": "foreign_rrn",
+      "text": "010631-7385102 외국인이라 세금이 다른지 알려줘",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "6월 31일, 2000년대생 외국인 7"
+    },
+    {
+      "id": "p08",
+      "category": "card",
+      "text": "카드 5310-4821-0937-6615 로 결제하면 ETF 살 수 있어?",
+      "expect_blocked": true,
+      "source": "B 테스트(값 바꿈)",
+      "note": "Luhn 검사 실패 값"
+    },
+    {
+      "id": "p09",
+      "category": "card",
+      "text": "제 카드번호 4721 0388 1259 4407 인데 적립식으로 S&P500 ETF 사고 싶어",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "공백 구분, Luhn 실패"
+    },
+    {
+      "id": "p10",
+      "category": "card",
+      "text": "9410876532104589 카드로 자동이체 걸어 줘",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "구분자 없는 16자리, Luhn 실패. B 패턴은 구분자가 있어야 잡음"
+    },
+    {
+      "id": "p11",
+      "category": "card",
+      "text": "신용카드 3758-2210-4467-9031 유효기간 지났는데 ETF 매수 되나?",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "Luhn 실패"
+    },
+    {
+      "id": "p12",
+      "category": "email",
+      "text": "결과는 hong.gildong@example.com 으로 보내 주고 레버리지 ETF 위험도 알려줘",
+      "expect_blocked": true,
+      "source": "B 테스트",
+      "note": "예약 도메인"
+    },
+    {
+      "id": "p13",
+      "category": "email",
+      "text": "제 메일 etf_lover99@example.org 로 월배당 ETF 정리해서 보내줘",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "예약 도메인"
+    },
+    {
+      "id": "p14",
+      "category": "email",
+      "text": "kim.investor+etf@sub.example.net 에 답장 주세요. 총보수 낮은 ETF가 궁금해요",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "+ 태그, 하위 도메인"
+    },
+    {
+      "id": "p15",
+      "category": "phone",
+      "text": "제 번호 010-0123-4567 인데 ETF 추천해줘",
+      "expect_blocked": true,
+      "source": "A·B 테스트(값 바꿈)"
+    },
+    {
+      "id": "p16",
+      "category": "phone",
+      "text": "01001234567로 연락 주시고 나스닥100 ETF 비교해줘",
+      "expect_blocked": true,
+      "source": "A·B 테스트(값 바꿈)",
+      "note": "하이픈 없음"
+    },
+    {
+      "id": "p17",
+      "category": "phone",
+      "text": "사무실 02-012-3456 으로 전화 주세요. 채권 ETF 문의입니다",
+      "expect_blocked": true,
+      "source": "A·B 테스트(값 바꿈)",
+      "note": "서울 지역번호"
+    },
+    {
+      "id": "p18",
+      "category": "phone",
+      "text": "031 0123 4567 집 전화인데 커버드콜 ETF 설명해 줄 수 있어?",
+      "expect_blocked": true,
+      "source": "B 테스트(값 바꿈)",
+      "note": "공백 구분"
+    },
+    {
+      "id": "p19",
+      "category": "phone",
+      "text": "0100123 4567 이 번호로 알림 받고 싶어요",
+      "expect_blocked": true,
+      "source": "B 테스트(값 바꿈)",
+      "note": "끝 4자리만 띄움"
+    },
+    {
+      "id": "p20",
+      "category": "account",
+      "text": "내 계좌 000-456-789012 수익률 알려줘",
+      "expect_blocked": true,
+      "source": "A 테스트(값 바꿈)"
+    },
+    {
+      "id": "p21",
+      "category": "account",
+      "text": "계좌번호 00045678901234 로 조회해줘",
+      "expect_blocked": true,
+      "source": "A 테스트(값 바꿈)",
+      "note": "하이픈 없는 14자리, '계좌' 단어 있음"
+    },
+    {
+      "id": "p22",
+      "category": "account",
+      "text": "증권계좌 000-12-3456789 에 있는 나스닥100 ETF 평가금액 알려줘",
+      "expect_blocked": true,
+      "source": "B 테스트(값 바꿈)"
+    },
+    {
+      "id": "p23",
+      "category": "account",
+      "text": "000123-04-567890 계좌로 분배금 들어오는 날짜 알려줘",
+      "expect_blocked": true,
+      "source": "새로",
+      "note": "6-2-6 형태, '계좌' 단어 앞에 숫자"
+    },
+    {
+      "id": "p24",
+      "category": "ticker",
+      "text": "069500 순자산 알려줘",
+      "expect_blocked": false,
+      "source": "A 테스트"
+    },
+    {
+      "id": "p25",
+      "category": "ticker",
+      "text": "069500 2024년 분배금 알려줘",
+      "expect_blocked": false,
+      "source": "B 테스트",
+      "note": "종목코드 + 연도가 전화번호로 오인되기 쉬움"
+    },
+    {
+      "id": "p26",
+      "category": "ticker",
+      "text": "종목 069500, 2023 2024 분배금",
+      "expect_blocked": false,
+      "source": "B 테스트"
+    },
+    {
+      "id": "p27",
+      "category": "ticker",
+      "text": "051910 1234주 보유 중인데 비슷한 ETF 있어?",
+      "expect_blocked": false,
+      "source": "B 테스트",
+      "note": "종목코드 + 수량"
+    },
+    {
+      "id": "p28",
+      "category": "ticker",
+      "text": "133690과 360750 총보수 비교해줘",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "종목코드 두 개"
+    },
+    {
+      "id": "p29",
+      "category": "date",
+      "text": "2026-11-10 기준 NAV 알려줘",
+      "expect_blocked": false,
+      "source": "A 테스트",
+      "note": "계좌번호 패턴과 비슷한 하이픈 형태"
+    },
+    {
+      "id": "p30",
+      "category": "date",
+      "text": "기준일 2026-11-11, 종목코드 900010, 괴리율 0.23%, 문의 1588-0000",
+      "expect_blocked": false,
+      "source": "B 테스트",
+      "note": "날짜·코드·비율·대표번호 복합"
+    },
+    {
+      "id": "p31",
+      "category": "date",
+      "text": "2025.12.31부터 2026.06.30까지 수익률 알려줘",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "점 구분 기간"
+    },
+    {
+      "id": "p32",
+      "category": "date",
+      "text": "20261110 종가 기준으로 보여줘",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "8자리 연속 날짜"
+    },
+    {
+      "id": "p33",
+      "category": "amount",
+      "text": "1,000,000원으로 살 수 있는 나스닥100 ETF 주수는?",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p34",
+      "category": "amount",
+      "text": "12345678원 넣으면 총보수로 1년에 얼마 나가?",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "8자리 연속 금액"
+    },
+    {
+      "id": "p35",
+      "category": "amount",
+      "text": "순자산 3조 5,000억 원 넘는 ETF만 보여줘",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p36",
+      "category": "amount",
+      "text": "월 300,000원씩 120개월 적립하면 총보수는 얼마야?",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p37",
+      "category": "ratio",
+      "text": "총보수 0.0099%인 ETF가 있어?",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p38",
+      "category": "ratio",
+      "text": "괴리율이 -0.15% 이상 0.20% 이하인 ETF",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "음수·범위"
+    },
+    {
+      "id": "p39",
+      "category": "ratio",
+      "text": "분배율 연 3.5%와 월 0.29% 차이 설명해줘",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p40",
+      "category": "isin",
+      "text": "KR7069500007 정보",
+      "expect_blocked": false,
+      "source": "A 테스트"
+    },
+    {
+      "id": "p41",
+      "category": "isin",
+      "text": "KR7133690008와 KR7360750004 구성종목 비교",
+      "expect_blocked": false,
+      "source": "새로"
+    },
+    {
+      "id": "p42",
+      "category": "isin",
+      "text": "US46090E1038 같은 해외 ISIN도 조회돼?",
+      "expect_blocked": false,
+      "source": "새로",
+      "note": "영문 섞인 12자리"
+    }
+  ]
+}

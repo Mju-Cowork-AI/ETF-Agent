@@ -21,6 +21,7 @@ const INTENTS = [
   'recommendation',
   'out_of_scope',
   'blocked',
+  'pii',
 ]
 const VERDICTS = [
   '',
