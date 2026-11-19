@@ -8,6 +8,8 @@
 - 답변 작성에는 상한 시간이 있고, 서버 종료 때는 진행 중인 작업의 저장을 기다린다(drain).
 - 토큰은 가드를 통과한 최종 답변을 잘게 나눠 보낸다(검증 전 문장이 화면에 노출되지 않도록).
 - 질의 원문은 메모리에서만 쓰고, DB에는 mask_pii() 값만, 트레이스·로그에는 남기지 않는다.
+  개인정보 때문에 차단될 질문은 mask_pii()가 못 가리는 꼴(구분자 없는 카드번호 등)이 있어,
+  messages·대화 제목에 원문 대신 PII_BLOCKED_MESSAGE를 저장한다.
 """
 
 import asyncio
@@ -29,6 +31,7 @@ from app.container import Container
 from app.logging import get_logger
 from app.observability import TraceRecord
 from app.observability.metrics import observe_chat
+from app.privacy import find_pii_to_block
 from app.repositories import conversations as conv_repo
 
 log = get_logger(__name__)
@@ -37,6 +40,8 @@ _TOKEN_RE = re.compile(r"\S+\s*|\s+")
 ERROR_MESSAGE = "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
 CANCELLED_ANSWER = "답변을 받기 전에 연결이 끊겨 작성을 멈췄습니다. 같은 질문을 다시 보내 주세요."
 CANCELLED_VERDICT = "cancelled"
+# 개인정보 때문에 차단된 질문을 저장할 때 원문 대신 쓰는 문구(그래프 전처리와 같은 검사)
+PII_BLOCKED_MESSAGE = "[개인정보 포함 질문 — 차단됨]"
 # 답변 한 건의 상한 시간(분류 + 답변 + 재생성 + 판정). 넘으면 안전 답변으로 끝낸다.
 ANSWER_TIMEOUT_SECONDS = 120.0
 # 응답 스트림과 분리된 답변 작업. 이벤트 루프는 약한 참조만 가지므로 여기서 붙잡아 둔다.
@@ -94,17 +99,19 @@ async def stream_chat(c: Container, principal: Principal, req: ChatRequest) -> A
     async def emit(stage: str, message: str) -> None:
         await queue.put(("status", {"stage": stage, "message": message}))
 
+    # 그래프 전처리가 차단할 질문은 원문 대신 고정 문구로 저장한다(대화 제목 포함).
+    stored = PII_BLOCKED_MESSAGE if find_pii_to_block(req.message) else req.message
     try:
         async with c.maker() as session:
             conv = await conv_repo.get_or_create_conversation(
-                session, principal.user_id, req.conversation_id, req.message
+                session, principal.user_id, req.conversation_id, stored
             )
             history_rows = await conv_repo.recent_messages(
                 session, conv.id, c.settings.history_turns
             )
             level = req.level or await _profile_level(session, principal)
             await conv_repo.add_message(
-                session, conversation_id=conv.id, role="user", content=req.message,
+                session, conversation_id=conv.id, role="user", content=stored,
                 request_id=request_id, meta={"level": level.value},
             )  # fmt: skip
             await session.commit()

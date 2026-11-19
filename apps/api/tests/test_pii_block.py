@@ -1,6 +1,8 @@
 """외부 호출 전 개인정보 차단(P1-AG-06): 전처리에서 원문으로 검사 → template, LLM·임베딩 0회."""
 
 import json
+import re
+import uuid
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,8 @@ from app.agents.state import AgentDeps
 from app.db import get_sessionmaker
 from app.llm.fake import FakeEmbedder, FakeLLM
 from app.privacy import find_pii, find_pii_to_block, mask_pii
-from app.repositories.models import Trace
+from app.repositories.models import Conversation, Message, Trace
+from app.services.chat import PII_BLOCKED_MESSAGE
 from app.settings import Settings
 from tests.sse import parse_sse
 
@@ -179,3 +182,46 @@ async def test_trace_has_kinds_only(client: AsyncClient, user_headers: dict) -> 
         value = str(getattr(trace, col.key))
         assert "00045678901234" not in value
         assert "zz-pii-marker" not in value
+
+
+# ---------- 저장 ----------
+_DIGITS = re.compile(r"\d{4,}")  # 원문의 4자리 이상 숫자 덩어리(번호 일부)
+_LOCAL = re.compile(r"[A-Za-z0-9._%+-]+(?=@)")  # 이메일 아이디
+
+
+def _secrets(text: str) -> list[str]:
+    return _DIGITS.findall(text) + _LOCAL.findall(text)
+
+
+@pytest.mark.parametrize(
+    "case", BLOCK, ids=_ids
+)  # p10(구분자 없는 카드)·p21(하이픈 없는 계좌) 포함
+async def test_blocked_question_stored_as_placeholder(
+    case: dict[str, Any], client: AsyncClient, user_headers: dict
+) -> None:
+    resp = await client.post("/chat", json={"message": case["text"]}, headers=user_headers)
+    done = parse_sse(resp.text)[-1][1]
+    assert done["intents"] == ["pii"]
+    conv_id = uuid.UUID(done["conversation_id"])
+    async with get_sessionmaker()() as s:
+        conv = await s.get(Conversation, conv_id)
+        msgs = list(await s.scalars(select(Message).where(Message.conversation_id == conv_id)))
+    assert conv is not None and conv.title == PII_BLOCKED_MESSAGE
+    user_msgs = [m for m in msgs if m.role == "user"]
+    assert [m.content for m in user_msgs] == [PII_BLOCKED_MESSAGE]
+    secrets = _secrets(case["text"])
+    assert secrets  # 케이스마다 확인할 값이 있다
+    stored = [conv.title, *(m.content for m in msgs), *(str(m.meta) for m in msgs)]
+    for value in stored:
+        for secret in secrets:
+            assert secret not in value
+
+
+async def test_allowed_question_stored_as_is(client: AsyncClient, user_headers: dict) -> None:
+    text = "069500 2024년 분배금 알려줘"
+    resp = await client.post("/chat", json={"message": text}, headers=user_headers)
+    done = parse_sse(resp.text)[-1][1]
+    conv_id = uuid.UUID(done["conversation_id"])
+    async with get_sessionmaker()() as s:
+        msgs = list(await s.scalars(select(Message).where(Message.conversation_id == conv_id)))
+    assert [m.content for m in msgs if m.role == "user"] == [text]
