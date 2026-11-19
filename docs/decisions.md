@@ -50,7 +50,7 @@
 - **제출 마감 시각(11-28)**: 운영진에 확인 중
 - **각자 빠지는 날**: 아직 받지 못함. 용량은 지금 값(약 203~229h)을 그대로 두고, 받으면 빠지는 시간만큼 빼서 다시 계산
 - **크레딧이 끝나는 날과 그 뒤 URL 유지 여부**: 크레딧이 끝나면 API·DB가 구독과 함께 멈춤. 제출·발표 뒤에도 URL을 열어 둬야 하는지 확인 필요([deploy_candidates.md](deploy_candidates.md) 4장)
-- Azure 모델별 단가, 할당량 한도의 단위, GPT-6.x 등급 차이([azure_models.md](azure_models.md) 6장)
+- 할당량 한도의 단위, GPT-6.x 등급 차이([azure_models.md](azure_models.md) 6장). 생성·계획·검증 모델 단가는 확인됨([plan.md](plan.md) 8-1)
 - 배포 첫 요청 지연(최소 복제본 1이라 영향이 작을 것으로 봄), API 컨테이너 메모리, 한 답변의 최대 소요 시간(11-21 리허설에서 측정, [deploy_candidates.md](deploy_candidates.md) 5장)
-- Azure 단가(평가 비용 계산용)
+- 임베딩 모델과 단가(평가 비용 계산용). 생성·계획·검증 단가는 [plan.md](plan.md) 8-1
 - 코드 들여오기 뒤 `.env.example` 변수 이름을 FastAPI 기반 코드의 설정 이름에 맞춤
