@@ -28,7 +28,7 @@
 - 보관 위치(Key Vault·GitHub Secrets·`.env`), 이름 규칙, 등록·교체, 실수로 커밋했을 때는 [dev-guide.md](dev-guide.md) 6장을 따릅니다.
 - 팀 추가
   - **채팅·로그·스크린샷에도 키를 넣지 않습니다.**
-  - **Azure 키 관리자를 1명 지정합니다**(채팅방 결정, [decision_board.md](decision_board.md)). 관리자가 Key Vault 등록과 팀원 `.env` 전달 방식을 맡습니다.
+  - **Azure 키 관리자는 Cloud Engineer입니다**(11-18 결정). 관리자가 Key Vault 등록을 맡고, 키는 **Key Vault로만** 전달합니다.
   - Gemini·Groq 같은 무료 키는 팀원 각자 자기 것을 씁니다. 여러 키를 번갈아 쓰는 코드는 만들지 않습니다(한도 우회 소지).
   - `.env.example`에는 이름과 설명만 두고 값은 넣지 않습니다.
 
