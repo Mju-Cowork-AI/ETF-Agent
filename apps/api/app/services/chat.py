@@ -31,6 +31,7 @@ from app.container import Container
 from app.logging import get_logger
 from app.observability import TraceRecord
 from app.observability.metrics import observe_chat
+from app.observability.stages import StageTimer
 from app.privacy import find_pii_to_block
 from app.repositories import conversations as conv_repo
 from app.repositories import usage as usage_repo
@@ -133,7 +134,11 @@ async def stream_chat(c: Container, principal: Principal, req: ChatRequest) -> A
 
     queue: asyncio.Queue[tuple[str, dict[str, Any]]] = asyncio.Queue()
 
+    # 단계별 소요 시간(트레이스용). 그래프가 단계를 알릴 때마다 앞 단계를 닫는다.
+    timer = StageTimer(started)
+
     async def emit(stage: str, message: str) -> None:
+        timer.mark(stage)
         await queue.put(("status", {"stage": stage, "message": message}))
 
     # 그래프 전처리가 차단할 질문은 원문 대신 고정 문구로 저장한다(대화 제목 포함).
@@ -189,6 +194,7 @@ async def stream_chat(c: Container, principal: Principal, req: ChatRequest) -> A
             context_tickers=context_tickers,
             started=started,
             saving=saving,
+            timer=timer,
         )
     )
     _running.add(task)
@@ -237,6 +243,7 @@ async def _answer(
     context_tickers: list[str],
     started: float,
     saving: asyncio.Event,
+    timer: StageTimer,
 ) -> dict[str, Any]:
     """그래프 실행 → 답변 저장 → 트레이스. 실패·중단·시간 초과에도 답변을 저장하고 결과를 돌려준다."""
     state: GraphState | None = None
@@ -257,6 +264,7 @@ async def _answer(
     except Exception:
         # 질의 원문 없이 예외 종류만 남긴다(시간 초과 포함)
         log.exception("chat_graph_failed", request_id=request_id)
+    stage_timings = timer.stop()  # 그래프가 끝난 때까지(실패·중단·시간 초과 포함). 저장 시간은 뺀다
     saving.set()  # 여기부터는 취소하지 않는다(호출 측이 이 표시를 보고 판단한다)
 
     if cancelled:
@@ -319,6 +327,7 @@ async def _answer(
                 latency_ms=latency_ms,
                 model=model,
                 fallback_used=fallback,
+                stage_timings=stage_timings,
             )
         )
     except Exception:

@@ -215,6 +215,10 @@ class Trace(TimestampMixin, Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     model: Mapped[str | None] = mapped_column(Text)
     fallback_used: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    # 단계별 소요 시간. 실행 순서대로 [{"stage": 단계 이름, "ms": 밀리초}, …]
+    stage_timings: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, server_default="[]", nullable=False
+    )
 
 
 class DailyQuestionCount(Base):
