@@ -24,6 +24,20 @@ async def upsert_user(session: AsyncSession, email: str, role: str) -> User:
     return user
 
 
+ANON_ROLE = "anon"
+ANON_EMAIL_DOMAIN = "anonymous.invalid"  # 예약 도메인(RFC 2606). 실제 주소가 아님
+
+
+async def create_anonymous_user(session: AsyncSession) -> User:
+    """로그인 없는 접근용 익명 사용자. email은 NOT NULL·unique 제약 때문에 넣는 자리표시이며
+    무작위 UUID에서만 만든다(개인정보 없음)."""
+    user_id = uuid.uuid4()
+    user = User(id=user_id, email=f"anon-{user_id}@{ANON_EMAIL_DOMAIN}", role=ANON_ROLE)
+    session.add(user)
+    await session.commit()
+    return user
+
+
 async def get_user(session: AsyncSession, user_id: uuid.UUID) -> User | None:
     return await session.get(User, user_id)
 

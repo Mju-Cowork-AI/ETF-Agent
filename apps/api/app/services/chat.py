@@ -89,6 +89,9 @@ async def _profile_level(session: AsyncSession, principal: Principal) -> Level:
 
 
 async def stream_chat(c: Container, principal: Principal, req: ChatRequest) -> AsyncIterator[str]:
+    # TODO(D13, Cloud Engineer): 하루 질문 상한은 여기, 그래프·DB 작업 전에 붙인다.
+    # 서비스 전체의 하루(KST) 질문 수를 DB에서 원자적으로 +1 하고, 넘으면 LLM 호출 없이 안내 문구로 끝낸다.
+    # 익명 user_id는 누구나 새로 받을 수 있어 사용자별 상한만으로는 막을 수 없다.
     request_id = uuid.uuid4().hex
     started = time.perf_counter()
     # 요청 즉시 첫 status (DB·LLM 작업 전)

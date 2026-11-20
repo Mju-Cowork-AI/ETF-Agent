@@ -32,6 +32,11 @@ def build_admin_verifier(settings: Settings) -> AdminVerifier:
             from app.auth.base import RoleAdminVerifier
 
             return RoleAdminVerifier()
+        case AdminAuth.TOKEN:
+            from app.auth.base import TokenAdminVerifier
+
+            assert settings.admin_token is not None  # noqa: S101 (settings가 검사)
+            return TokenAdminVerifier(token=settings.admin_token.get_secret_value())
         case AdminAuth.CF_ACCESS:
             from app.auth.cf_access import CloudflareAccessVerifier
 
