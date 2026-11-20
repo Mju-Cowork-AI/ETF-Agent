@@ -50,6 +50,35 @@ async def test_compare_does_not_label_stale_price_with_newest_date(
     assert st["sources"][0].location == f"기준일 {older} ~ {latest}"
 
 
+async def test_single_etf_different_master_dates_says_항목마다(deps: AgentDeps) -> None:
+    """단일 ETF에 실부담비용 기준일과 순자산 기준일이 다르면 '항목마다 다릅니다'."""
+    from datetime import date
+
+    async with deps.maker() as s:
+        await s.execute(
+            update(EtfMaster)
+            .where(EtfMaster.ticker == "900010")
+            .values(
+                actual_expense_as_of=date(2026, 10, 30),
+                net_assets_as_of=date(2026, 11, 19),
+            )
+        )
+        await s.commit()
+    try:
+        st = await ask(deps, "샘플 코스피200 정보 알려줘")
+        ans = st["answer"]
+        assert "항목마다 다릅니다" in ans
+        assert "상품마다 다릅니다" not in ans
+    finally:
+        async with deps.maker() as s:
+            await s.execute(
+                update(EtfMaster)
+                .where(EtfMaster.ticker == "900010")
+                .values(actual_expense_as_of=None, net_assets_as_of=None)
+            )
+            await s.commit()
+
+
 async def test_etf_info_premium_discount(deps: AgentDeps) -> None:
     st = await ask(deps, "샘플 나스댁100 괴리율 알려줘")  # 오타
     assert st["intents"] == ["etf_info"]
@@ -153,7 +182,8 @@ async def test_high_risk_uses_template_without_generation(
 async def test_recommendation_phase3_notice(deps: AgentDeps) -> None:
     st = await ask(deps, "나한테 맞는 ETF 추천해줘")
     assert st["intents"] == ["recommendation"]
-    assert "Phase 3" in st["answer"]
+    assert "맞춤 상품 추천은 아직 제공하지 않습니다" in st["answer"]
+    assert "실부담비용" in st["answer"]
 
 
 async def test_out_of_scope(deps: AgentDeps) -> None:

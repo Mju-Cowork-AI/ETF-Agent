@@ -79,7 +79,7 @@ async def test_banned_answer_regenerates_once_then_safe_answer(
     assert st["verdict"] == "blocked"
     assert "원금이 보장되는" not in st["answer"]
     assert "문의" in st["answer"]  # 안전 답변 + 문의 채널
-    assert any("banned:guarantee_principal" in rs for rs in st["guard_history"])
+    assert any("banned:principal_safety" in rs for rs in st["guard_history"])
 
 
 async def test_regeneration_can_pass(deps: AgentDeps, fake_llm: FakeLLM) -> None:

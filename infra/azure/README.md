@@ -55,6 +55,8 @@ API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 �
 
 사전 조건: `az login`, Docker(Apple Silicon은 `linux/amd64`로 빌드), 웹은 `npx wrangler login`.
 
+웹(Cloudflare Pages `etf-agent`)은 Cloud Engineer의 개인 Cloudflare 계정에 있어, 지금은 Cloud Engineer만 배포할 수 있다. 다른 팀원이 배포하려면 Cloud Engineer가 그 계정에 구성원으로 초대해야 한다.
+
 ```bash
 # 1) API 이미지 빌드·푸시 (레포 루트에서). 무료 구독은 `az acr build`가 막혀 있어 로컬에서 빌드한다
 TAG=$(git rev-parse --short HEAD)
@@ -225,6 +227,6 @@ API는 어느 방식이든 **Bearer JWT를 검증**한다(`app/auth/base.py`의 
 - `APP_ENV=prod` — `AUTH_PROVIDER=local`이면 `LOCAL_JWT_SECRET`이 없을 때 기동하지 않는다.
 - `CORS_ORIGINS` — 웹 공개 주소(리허설은 `https://etf-agent.pages.dev`). 웹과 API의 주소가 달라서 반드시 넣는다.
 - `TRACER` — `pg`만 동작한다. `langfuse`는 스텁이라 고르면 API가 기동하지 않는다.
-- `ADMIN_AUTH` — `local`(JWT의 `role=admin`) 또는 `token`(`X-Admin-Token` 헤더 = `ADMIN_TOKEN`)이 동작한다. 공개 URL은 `token`을 쓴다(`APP_ENV=prod`에서는 `dev-login`이 닫혀 `local`로는 운영자가 될 수 없다). `cf_access`(Cloudflare Access)는 스텁이라 운영 API가 501로 응답한다.
-- `ANON_ACCESS_ENABLED=true` — 로그인 없는 접근. 웹은 `VITE_AUTH_MODE=anonymous`로 빌드한다.
+- `ADMIN_AUTH` — 공개 URL에서는 `token`을 쓴다. 운영 API가 `X-Admin-Token` 헤더를 `ADMIN_TOKEN`(Key Vault, 공백을 뺀 32자 이상. 예: `openssl rand -hex 32`)과 비교하고, 팀원은 웹 주소 끝 `#admin`에서 이 값을 넣는다. `local`(JWT의 `role=admin`)은 로컬 개발용이다. `cf_access`(Cloudflare Access)는 스텁이라 운영 API가 501로 응답한다.
+- `ANON_ACCESS_ENABLED=true` — 로그인 없는 접근(브라우저마다 익명 사용자, 토큰 30일). 웹은 `VITE_AUTH_MODE=anonymous`로 빌드한다. `LOCAL_JWT_SECRET`을 바꾸면 기존 익명 토큰이 모두 무효가 되어 사용자가 대화를 잃으므로, 한 번 등록한 뒤에는 바꾸지 않는다.
 - `DAILY_QUESTION_LIMIT` — 하루 질문 상한(D13). 리허설 임시값 200, 11-21 토큰 실측 뒤 다시 계산한다.

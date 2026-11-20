@@ -65,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
     )
     for r in (health, auth, chat, history, feedback, admin, metrics):
         app.include_router(r.router)

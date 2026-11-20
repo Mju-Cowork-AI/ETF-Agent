@@ -52,6 +52,16 @@ class EtfMaster(Base):
     issuer: Mapped[str | None] = mapped_column(Text)  # 운용사
     underlying_index: Mapped[str | None] = mapped_column(Text)  # 기초지수
     total_expense_ratio: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # 총보수(%, 연)
+    actual_expense_ratio: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # 실부담비용(%, 연)
+    actual_expense_as_of: Mapped[date | None] = mapped_column(Date)  # 실부담비용 기준일
+    distribution_cycle: Mapped[str | None] = mapped_column(Text)  # 분배주기
+    currency_hedged: Mapped[str | None] = mapped_column(Text)  # 환헤지
+    net_assets: Mapped[int | None] = mapped_column(BigInteger)  # 순자산총액(원)
+    net_assets_as_of: Mapped[date | None] = mapped_column(Date)  # 순자산 기준일
+    fee_source: Mapped[str | None] = mapped_column(Text)  # 총보수 출처
+    actual_expense_source: Mapped[str | None] = mapped_column(Text)  # 실부담비용 출처
+    net_assets_source: Mapped[str | None] = mapped_column(Text)  # 순자산 출처
+    checked_date: Mapped[date | None] = mapped_column(Date)  # 점검일
     category: Mapped[str | None] = mapped_column(Text)  # 분류
     listed_date: Mapped[date | None] = mapped_column(Date)  # 상장일
     description: Mapped[str | None] = mapped_column(Text)
@@ -205,3 +215,15 @@ class Trace(TimestampMixin, Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     model: Mapped[str | None] = mapped_column(Text)
     fallback_used: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+
+
+class DailyQuestionCount(Base):
+    """서비스 전체의 하루(KST) 질문 수. 하루 질문 상한(D13)이 재시작 뒤에도 유지되도록 DB에 둔다."""
+
+    __tablename__ = "daily_question_counts"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)  # 한국 시간 날짜
+    count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

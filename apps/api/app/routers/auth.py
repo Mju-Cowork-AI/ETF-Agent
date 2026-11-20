@@ -1,8 +1,11 @@
-"""인증: AUTH_PROVIDER=local의 개발용 로그인(APP_ENV=local에서만), 내 프로필 조회·수정. # P1-API-01
+"""인증: AUTH_PROVIDER=local의 개발용 로그인(APP_ENV=local에서만), 익명 발급(ANON_ACCESS_ENABLED),
+내 프로필 조회·수정. # P1-API-01
 
 프로필의 level(설명 수준)은 처음 로그인할 때 고르고(NULL이면 웹이 온보딩을 띄운다),
-채팅 요청에 level이 없으면 이 값으로 답한다.
+채팅 요청에 level이 없으면 이 값으로 답한다. 익명 사용자는 웹이 채팅 요청마다 level을 보낸다.
 """
+
+from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -59,6 +62,24 @@ async def dev_login(body: DevLoginRequest, c: ContainerDep) -> TokenResponse:
     async with c.maker() as session:
         user = await conv_repo.upsert_user(session, email, role)
     token = c.auth.issue(Principal(user_id=user.id, email=user.email, role=user.role))
+    return TokenResponse(access_token=token, user=_out(user))
+
+
+@router.post("/anonymous", response_model=TokenResponse)
+async def anonymous(c: ContainerDep) -> TokenResponse:
+    """로그인 없는 접근: 브라우저마다 새 익명 사용자와 토큰(30일)을 준다. 기본은 꺼져 있다(404).
+
+    하는 일이 '새 사용자 만들기'뿐이라 요청 본문이 없다. 반복 호출 제한은 아직 없다.
+    """
+    s = c.settings
+    if not s.anon_access_enabled or s.auth_provider is not AuthProvider.LOCAL:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not Found")
+    async with c.maker() as session:
+        user = await conv_repo.create_anonymous_user(session)
+    token = c.auth.issue(
+        Principal(user_id=user.id, email=user.email, role=user.role),
+        ttl=timedelta(minutes=s.anon_jwt_ttl_minutes),
+    )
     return TokenResponse(access_token=token, user=_out(user))
 
 
