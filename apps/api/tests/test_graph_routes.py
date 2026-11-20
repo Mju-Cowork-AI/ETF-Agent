@@ -153,7 +153,8 @@ async def test_high_risk_uses_template_without_generation(
 async def test_recommendation_phase3_notice(deps: AgentDeps) -> None:
     st = await ask(deps, "나한테 맞는 ETF 추천해줘")
     assert st["intents"] == ["recommendation"]
-    assert "Phase 3" in st["answer"]
+    assert "맞춤 상품 추천은 아직 제공하지 않습니다" in st["answer"]
+    assert "실부담비용" in st["answer"]
 
 
 async def test_out_of_scope(deps: AgentDeps) -> None:
