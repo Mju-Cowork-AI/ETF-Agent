@@ -1,6 +1,8 @@
 # ETF-Agent: ETF 질의응답 챗봇
 
-> **배포된 서비스:** 리허설 배포(11-21 기준, 최종 URL은 11-28 제출 전 확정): <https://etf-agent.pages.dev>
+> **배포된 서비스(리허설, 샘플 데이터, 최종 URL은 11-28 제출 전 확정):** <https://etf-agent.pages.dev>
+>
+> API: <https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io> · 구성과 배포 절차는 [infra/azure/README.md](infra/azure/README.md)
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
