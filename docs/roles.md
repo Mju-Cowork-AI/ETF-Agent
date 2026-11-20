@@ -109,7 +109,7 @@
 | 날짜 | 할 일 | 완료 기준 |
 |---|---|---|
 | 11-18~19 | 코드 들여오기, 팀 Docker 환경 | 4장 기준 |
-| 11-20~21 | **(b) API·웹·DB 배포 리허설과 하루 질문 상한**(API Azure Container Apps 최소 복제본 1, 웹 Cloudflare Pages, DB Azure PostgreSQL B1ms, D9) | 3장 (b) 기준. 배포할 때 마이그레이션·시드·적재가 자동으로 돌거나 절차가 문서화됨<br>**하루 질문 상한은 PR #17로 머지됨**(서비스 전체 하루 KST 질문 수, 리허설 임시값 200건, [decisions.md](decisions.md) 11-20). 웹은 11-20 리허설 배포에서 Cloudflare Pages로 정함(`https://etf-agent.pages.dev`), API `CORS_ORIGINS`에 웹 주소 |
+| 11-20~21 | **(b) API·웹·DB 배포 리허설과 하루 질문 상한**(API Azure Container Apps koreacentral 최소 복제본 1, 웹 Cloudflare Pages, DB Azure PostgreSQL B1ms 일본 동부, D9) | 3장 (b) 기준. 배포할 때 마이그레이션·시드·적재가 자동으로 돌거나 절차가 문서화됨<br>**하루 질문 상한은 PR #17로 머지됨**(서비스 전체 하루 KST 질문 수, 리허설 임시값 200건, [decisions.md](decisions.md) 11-20). 웹은 11-20 리허설 배포에서 Cloudflare Pages로 정함(`https://etf-agent.pages.dev`), API `CORS_ORIGINS`에 웹 주소<br>**D9 후속(11-20):** ① 웹이 Cloud Engineer 개인 계정이라 팀원 1명 추가 또는 재배포 방법 문서화 ② API(한국)·DB(일본) 응답 시간을 11-21 리허설에서 측정(p90 10초 목표) |
 | 11-22 | 통합 빌드 1차, 공수 실측 집계 | 실제 소요 시간 합계와 남은 공수가 decisions.md에 기록됨 |
 | 11-23~24 | 평가 실행 환경(배포 URL·키) 지원, 첫 평가 실행 함께 확인 | AI Engineer가 배포 URL과 평가용 키로 평가를 돌릴 수 있음 |
 | 11-25 | MVP 배포 반영 | 공통 기능 집합이 배포 URL에서 끝까지 동작 |

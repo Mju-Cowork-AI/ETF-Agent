@@ -104,7 +104,7 @@ START → preprocess ─(개인정보·인젝션·해킹 차단)─────�
 |---|---|---|
 | API | FastAPI, LangGraph(위 흐름), SSE로 검증 통과 답만 전송 | 배포: **Azure Container Apps, 최소 복제본 1**(D9). 요청 시간 상한 240초 |
 | 웹 | React(TypeScript) | 배포: **Cloudflare Pages**(D9, 무료. 11-20 리허설 배포에서 정함). API와 주소가 달라 API `CORS_ORIGINS`에 웹 주소를 넣음. 로그인 없이 사용(D13), 수준 선택 버튼은 채팅 화면(D12) |
-| DB | Postgres + pgvector, Alembic 마이그레이션 | 배포: **Azure Database for PostgreSQL flexible server B1ms**(D9, 무료 계정 12개월 무료 범위). ETF 데이터, 문서 색인, 대화·피드백(마스킹), 하루 질문 카운트 |
+| DB | Postgres + pgvector, Alembic 마이그레이션 | 배포: **Azure Database for PostgreSQL flexible server B1ms, 일본 동부(Japan East)**(D9, 무료 계정 12개월 무료 범위. 우리 구독에서 koreacentral B1ms 생성이 거부됨). ETF 데이터, 문서 색인, 대화·피드백(마스킹), 하루 질문 카운트 |
 | 로컬 실행 | Docker Compose | 팀원 4명 모두 같은 환경 |
 
 ### 2-5. 모델 배치
@@ -264,6 +264,8 @@ START → preprocess ─(개인정보·인젝션·해킹 차단)─────�
 | 가드 과잉 차단 | 쓸모없는 답 | 정상 질문 세트로 과잉 차단률 측정, 부정형 예외 |
 | 개인정보 오탐(종목코드·날짜를 번호로 판단) | 정상 질문 차단 | 오탐 예외 패턴과 테스트 |
 | 배포 복잡도(API·웹·DB를 따로 배포, 마이그레이션·시드) | 첫 URL 지연 | 11-21 리허설을 앞당겨 하고, 배포 절차를 문서화 |
+| 웹 배포가 한 사람 계정에 묶임(Cloudflare Pages가 Cloud Engineer 개인 계정) | Cloud Engineer가 없으면 웹 재배포·수정 반영 불가(제출일·발표일 버그 수정 지연) | 팀원 1명을 계정에 추가하거나 재배포 방법을 문서화(Cloud Engineer, D9) |
+| API·DB 지역이 달라 응답 지연(API koreacentral, DB 일본 동부) | 답변 시간 증가, 요청 상한(240초)·사용자 체감에 영향 | 11-21 리허설에서 응답 시간 측정(p90 10초 목표). 넘으면 DB 호출 수 줄이기나 지역 재검토를 채팅방에서 정함(D9) |
 | 로그인 없는 접근을 새로 만듦 | 공개 URL 사용 불가, 대화 섞임 | 11-21 리허설 완료 기준에 포함, 익명 세션 분리 테스트 |
 | 옮겨 온 코드의 오류(개인정보 차단·숫자 대조·실데이터) | 안전장치·수치 오류 | 승인 필수 PR, 원 코드 작성자 리뷰, 옮기기 전후 같은 테스트 |
 | 팀원 Docker·Postgres 미숙 | 일정 지연 | 11-19까지 4명 모두 로컬 실행 확인, 막히면 스탠드업에서 공유 |

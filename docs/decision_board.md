@@ -18,7 +18,7 @@
 |---|---|
 | ~~11-18(수) 18:00~~ | **결정됨:** 코드 들여오기, D9, D17, D16, D12, Azure 키 관리자, 범위 조정, D4(5개), D5(제외)<br>**확인 필요:** 각자 빠지는 날 |
 | **11-19(목) 12:00** | **결정됨:** D7(사실 비교표만), D8(같은 분기 이내). 반대 없음 / D6(용어집 + 투자설명서), 모듈 간 입출력 형식(AI Engineer 초안 확정), 모델 배치(생성 `gpt-6-sol`, 계획·검증 `gpt-6-luna`) |
-| 11-20(금) PR 리뷰 | **결정됨:** 공개 URL 설정(익명 접근 + 운영 토큰), 익명 토큰 30일, D13 세는 방식(서비스 전체 하루 KST, 리허설 임시값 200건), 가드 사유 id 범주 단위. PR #14·#15·#17 리뷰에서 정함([decisions.md](decisions.md)). D9 웹 배포처는 Cloudflare Pages로 정함(리허설 배포, Cloud Engineer) |
+| 11-20(금) PR 리뷰 | **결정됨:** 공개 URL 설정(익명 접근 + 운영 토큰), 익명 토큰 30일, D13 세는 방식(서비스 전체 하루 KST, 리허설 임시값 200건), 가드 사유 id 범주 단위. PR #14·#15·#17 리뷰에서 정함([decisions.md](decisions.md)). D9 웹 배포처는 Cloudflare Pages로 정함(리허설 배포, Cloud Engineer)<br>**채팅방(Cloud Engineer 제안·반대 없음):** D9 수정 — 웹 Cloudflare Pages(Cloud Engineer 개인 계정), DB 지역 일본 동부(koreacentral B1ms 생성 거부, SKU 그대로) |
 | 11-25(수) | D3 |
 | 11-29(일) | D10 |
 
@@ -40,7 +40,7 @@
 | 안건 | 상태 | 결과 |
 |---|---|---|
 | 코드 들여오기 | 결정됨 | FastAPI 구조 그대로, git 이력 살림. Cloud Engineer Draft PR, AI Engineer 리뷰(CI 통과 + 로컬 질문 1개) |
-| D9 배포처 | 결정됨 | API Azure Container Apps(최소 복제본 1), DB Azure PostgreSQL B1ms. 웹은 11-20 리허설 배포에서 Cloudflare Pages로 정함(무료) |
+| D9 배포처 | 결정됨 | API Azure Container Apps(koreacentral, 최소 복제본 1), DB Azure PostgreSQL B1ms. 웹은 11-20 리허설 배포에서 Cloudflare Pages로 정함(무료). **11-20 수정:** DB 지역은 일본 동부(koreacentral B1ms 생성 거부, SKU 그대로) |
 | D17 평가셋 규모 | 결정됨 | 60문항(Cloud Engineer·Data Scientist 동의) |
 | D16 멀티턴 | 결정됨 | 포함 |
 | D12 수준별 답변 | 결정됨 | 사용자 선택 3단계, 기본값 "입문", 버튼은 채팅 화면으로 이동 |
@@ -109,3 +109,5 @@
 - [x] 웹 배포 방식 정하고 D9 고치기(Cloud Engineer가 Cloudflare Pages로 정함, D9 수정 11-20)
 - [ ] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer)
 - [ ] 익명 발급 반복 호출 제한 결정(AI Solutions Architect, 11-28 최종 배포 전, 이슈)
+- [ ] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9)
+- [ ] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설)
