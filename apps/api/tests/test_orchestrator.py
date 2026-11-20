@@ -22,6 +22,8 @@ from app.llm.fake import FakeLLM
         ("ETF 추천해줘", False, ["recommendation"]),
         ("오늘 날씨 어때?", False, ["out_of_scope"]),
         ("샘플 반도체랑 샘플 2차전지 비교하고 뉴스도 알려줘", True, ["etf_info"]),
+        ("KODEX 200 분배금 발표 언제야?", True, ["etf_info"]),
+        ("상장폐지 이슈 있는 ETF 있어?", False, ["faq"]),
     ],
 )
 def test_keyword_rules(text: str, has_entity: bool, expected: list[str]) -> None:
