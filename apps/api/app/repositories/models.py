@@ -52,6 +52,16 @@ class EtfMaster(Base):
     issuer: Mapped[str | None] = mapped_column(Text)  # 운용사
     underlying_index: Mapped[str | None] = mapped_column(Text)  # 기초지수
     total_expense_ratio: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # 총보수(%, 연)
+    actual_expense_ratio: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # 실부담비용(%, 연)
+    actual_expense_as_of: Mapped[date | None] = mapped_column(Date)  # 실부담비용 기준일
+    distribution_cycle: Mapped[str | None] = mapped_column(Text)  # 분배주기
+    currency_hedged: Mapped[str | None] = mapped_column(Text)  # 환헤지
+    net_assets: Mapped[int | None] = mapped_column(BigInteger)  # 순자산총액(원)
+    net_assets_as_of: Mapped[date | None] = mapped_column(Date)  # 순자산 기준일
+    fee_source: Mapped[str | None] = mapped_column(Text)  # 총보수 출처
+    actual_expense_source: Mapped[str | None] = mapped_column(Text)  # 실부담비용 출처
+    net_assets_source: Mapped[str | None] = mapped_column(Text)  # 순자산 출처
+    checked_date: Mapped[date | None] = mapped_column(Date)  # 점검일
     category: Mapped[str | None] = mapped_column(Text)  # 분류
     listed_date: Mapped[date | None] = mapped_column(Date)  # 상장일
     description: Mapped[str | None] = mapped_column(Text)
