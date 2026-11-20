@@ -131,7 +131,6 @@ git fetch origin && git tag v1.0 origin/main && git push origin v1.0
 | 키 | 용도 |
 |---|---|
 | `LLM_API_KEY` | LLM 호출 |
-| `DATA_GO_KR_API_KEY` | 공공데이터포털 |
 | `DART_API_KEY` | 전자공시(DART) |
 
 ### 키 등록·교체 (관리자)

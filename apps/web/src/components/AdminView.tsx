@@ -138,6 +138,7 @@ function Traces() {
               <th>사유</th>
               <th>검색 문서</th>
               <th>지연(ms)</th>
+              <th>단계별(ms)</th>
               <th>모델</th>
               <th>request_id</th>
             </tr>
@@ -154,6 +155,9 @@ function Traces() {
                 <td className="small">{t.guard_reasons.join(', ')}</td>
                 <td className="small">{t.retrieved_doc_ids.join(', ')}</td>
                 <td>{t.latency_ms}</td>
+                <td className="small">
+                  {t.stage_timings.map((s) => `${s.stage} ${s.ms}`).join(' → ')}
+                </td>
                 <td className="small">
                   {t.model}
                   {t.fallback_used ? ' (fallback)' : ''}

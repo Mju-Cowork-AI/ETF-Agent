@@ -261,6 +261,7 @@ export type Trace = {
   latency_ms: number | null
   model: string | null
   fallback_used: boolean
+  stage_timings: { stage: string; ms: number }[]
   created_at: string
 }
 export type FeedbackRow = {

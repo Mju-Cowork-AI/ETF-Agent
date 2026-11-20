@@ -3,6 +3,7 @@
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -17,6 +18,8 @@ class TraceRecord:
     latency_ms: int | None = None
     model: str | None = None
     fallback_used: bool = False
+    # 실행 순서대로 [{"stage": 단계 이름, "ms": 밀리초}, …]. 단계 이름과 시간만 넣는다.
+    stage_timings: list[dict[str, Any]] = field(default_factory=list)
 
 
 class Tracer(ABC):
