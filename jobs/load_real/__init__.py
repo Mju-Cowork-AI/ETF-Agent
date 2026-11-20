@@ -1,4 +1,4 @@
-"""실데이터(수동 CSV) 검증·적재. 적재 전에 샘플 ETF(source='sample')와 그 시세를 삭제한다.
+"""실데이터(수동 CSV) 검증·적재. 적재 전에 샘플 데이터(ETF·시세·공시, source='sample')를 삭제한다.
 
 팀 규칙: 모든 값에 출처·수집일·항목별 기준일.
 검증 실패 시 적재 중단(ValueError). 실부담비용 기준일이 1년 넘으면 경고(적재는 계속).
@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import cache
 from app.repositories import etf as etf_repo
-from app.repositories.models import EtfMaster, PriceDaily
+from app.repositories.models import Disclosure, EtfMaster, PriceDaily
 from app.settings import REPO_ROOT
 
 REAL_DIR = REPO_ROOT / "data" / "real"
@@ -131,10 +131,12 @@ def load_csv(csv_path: Path) -> list[dict[str, str]]:
 
 
 async def delete_samples(session: AsyncSession) -> dict[str, int]:
-    """source='sample'인 시세와 ETF 마스터를 삭제한다(FK CASCADE로 시세부터)."""
+    """source='sample'인 공시·시세·ETF 마스터를 삭제한다(FK 순서: 공시·시세 → 마스터)."""
+    disc_result = await session.execute(delete(Disclosure).where(Disclosure.source == "sample"))
     prices_result = await session.execute(delete(PriceDaily).where(PriceDaily.source == "sample"))
     etf_result = await session.execute(delete(EtfMaster).where(EtfMaster.source == "sample"))
     return {
+        "deleted_disclosures": disc_result.rowcount,
         "deleted_prices": prices_result.rowcount,
         "deleted_etfs": etf_result.rowcount,
     }
