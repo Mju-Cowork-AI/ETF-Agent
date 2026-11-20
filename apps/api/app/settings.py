@@ -16,6 +16,9 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # 컨테이너도 /workspace에 같은 구조로 둔다
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
+# ADMIN_AUTH=token일 때 ADMIN_TOKEN 최소 길이(공백 제외)
+ADMIN_TOKEN_MIN_LENGTH = 32
+
 
 class AppEnv(StrEnum):
     LOCAL = "local"
@@ -50,6 +53,7 @@ class AuthProvider(StrEnum):
 
 class AdminAuth(StrEnum):
     LOCAL = "local"  # local JWT의 role=admin
+    TOKEN = "token"  # noqa: S105 (방식 이름) X-Admin-Token 헤더 = ADMIN_TOKEN(공개 URL 배포용)
     CF_ACCESS = "cf_access"  # 스텁
 
 
@@ -95,6 +99,12 @@ class Settings(BaseSettings):
     local_jwt_ttl_minutes: int = Field(default=60 * 12, gt=0)
     # dev-login 시 role=admin을 받을 이메일(쉼표 구분)
     admin_emails: CommaList = Field(default_factory=lambda: ["admin@local.test"])
+    # 로그인 없는 접근(공개 URL): POST /auth/anonymous가 브라우저마다 익명 사용자를 발급한다.
+    # 기본 false라 로컬 동작(dev-login)은 그대로다. AUTH_PROVIDER=local일 때만 쓸 수 있다.
+    anon_access_enabled: bool = False
+    anon_jwt_ttl_minutes: int = Field(default=60 * 24 * 30, gt=0)  # 익명 토큰 30일
+    # ADMIN_AUTH=token일 때 운영 API가 X-Admin-Token 헤더와 비교하는 값
+    admin_token: SecretStr | None = None
     # Supabase Auth (스텁에서 사용 예정)
     supabase_url: str | None = None
     supabase_jwks_url: str | None = None
@@ -205,6 +215,18 @@ class Settings(BaseSettings):
             if self.auth_provider is AuthProvider.LOCAL and self.app_env is not AppEnv.LOCAL:
                 raise ValueError("APP_ENV가 local이 아니면 LOCAL_JWT_SECRET이 필요합니다")
             self.local_jwt_secret = SecretStr(secrets.token_urlsafe(32))
+        if self.anon_access_enabled and self.auth_provider is not AuthProvider.LOCAL:
+            raise ValueError("ANON_ACCESS_ENABLED는 AUTH_PROVIDER=local에서만 켤 수 있습니다")
+        if self.admin_auth is AdminAuth.TOKEN:
+            # 공개 URL의 운영 API(문서 업로드 포함)를 이 값 하나로 막고 틀린 시도 횟수 제한이 없어 길이를 강제한다
+            token = self.admin_token.get_secret_value().strip() if self.admin_token else ""
+            if not token:
+                raise ValueError("ADMIN_AUTH=token이면 ADMIN_TOKEN이 필요합니다")
+            if len(token) < ADMIN_TOKEN_MIN_LENGTH:
+                raise ValueError(
+                    f"ADMIN_TOKEN은 공백을 뺀 {ADMIN_TOKEN_MIN_LENGTH}자 이상이어야 합니다"
+                    "(예: openssl rand -hex 32)"
+                )
         return self
 
     @property

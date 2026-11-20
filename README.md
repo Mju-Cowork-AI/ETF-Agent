@@ -94,27 +94,30 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | `GENERAL_CHAT_ENABLED` | 일반 대화 활성화. `APP_ENV=local`에서만 허용 |
 | `DAILY_QUESTION_LIMIT` | 하루 질문 상한(D13). 서비스 전체가 하루(한국 시간)에 받는 질문 수이며 기본 0(끔). 넘으면 LLM 호출 없이 안내 문구로 끝나고, 카운트는 DB에 있어 재시작해도 유지 |
 | `ADMIN_EMAILS`, `LOCAL_JWT_SECRET` | 개발용 관리자 이메일과 JWT 서명 키. 관리자 역할은 로그인할 때 토큰에 담기므로 목록 변경은 다시 로그인한 뒤 반영 |
+| `ANON_ACCESS_ENABLED`, `VITE_AUTH_MODE=anonymous` | 로그인 없는 접근(공개 URL). 브라우저마다 익명 사용자를 발급하고, 설명 수준은 채팅 화면 버튼으로 고름(기본 입문). 기본은 꺼짐 |
+| `ADMIN_AUTH=token`, `ADMIN_TOKEN` | 공개 URL의 운영 화면 보호. 팀원은 주소 끝에 `#admin`을 붙여 운영 토큰을 넣음 |
 | `METRICS_TOKEN` | `/metrics` 수집용 Bearer 토큰. 비우면 `APP_ENV=local`에서만 열림 |
 | `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키 |
 
 ### API
 
-인증이 필요한 API는 개발용 로그인으로 받은 JWT를 사용합니다. 상세 요청·응답은 실행 후 `/docs`에서 확인할 수 있습니다.
+인증이 필요한 API는 개발용 로그인이나 익명 발급으로 받은 JWT를 사용합니다. 상세 요청·응답은 실행 후 `/docs`에서 확인할 수 있습니다.
 
 | 경로 | 기능 |
 | --- | --- |
 | `GET /health`, `GET /metrics` | 상태 확인과 Prometheus 메트릭(`METRICS_TOKEN` 설정 시 Bearer 토큰 필요) |
 | `POST /auth/dev-login`, `GET/PATCH /auth/me` | 로컬 로그인과 설명 수준 설정 |
+| `POST /auth/anonymous` | 로그인 없는 접근용 익명 사용자·토큰(30일) 발급. `ANON_ACCESS_ENABLED=true`일 때만 열림 |
 | `POST /chat` | 채팅 SSE (`status` → `token` → `sources` → `done`). 질문을 저장하지 못하거나 답변 작업이 예기치 않게 중단되면 `done` 없이 `error`로 끝남 |
 | `GET/DELETE /history`, `GET/DELETE /history/{id}` | 대화 조회·삭제 |
 | `POST /feedback` | 좋아요·싫어요·정정 피드백 |
-| `/admin/traces`, `/admin/feedback`, `/admin/documents`, `/admin/search` | 관리자 전용 운영 API |
+| `/admin/traces`, `/admin/feedback`, `/admin/documents`, `/admin/search` | 관리자 전용 운영 API(`ADMIN_AUTH=token`이면 `X-Admin-Token` 헤더 필요) |
 
 대화를 삭제하면 메시지도 삭제되지만 피드백과 트레이스는 남습니다. 대화 내용은 저장 전 개인정보 패턴을 마스킹하며, 트레이스에는 질문 원문을 저장하지 않도록 구성되어 있습니다.
 
 ### 현재 범위와 배포
 
-로컬 실행이 중심인 MVP입니다. 배포는 API·웹을 Azure Container Apps(최소 복제본 1)에, DB를 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다(공개 URL의 로그인 없는 접근은 11-21 배포 리허설에서 추가). 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
+로컬 실행이 중심인 MVP입니다. 배포는 API·웹을 Azure Container Apps(최소 복제본 1)에, DB를 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 공개 URL은 로그인 없는 접근(`ANON_ACCESS_ENABLED=true`, `VITE_AUTH_MODE=anonymous`, `ADMIN_AUTH=token`)으로 엽니다. 하루 질문 상한(D13)은 아직 없습니다. 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
 
 가드의 검증 모델을 호출하지 못하거나 판정 결과를 두 번 연속 해석하지 못하면 답변을 내보내지 않고 안전 답변으로 대체합니다. 캐시는 프로세스별 메모리에 있으므로 별도 프로세스의 데이터 적재나 다른 API 인스턴스에 캐시 삭제가 전파되지 않습니다. 로컬에서는 `make restart`로 해결하고, API 인스턴스를 여러 개 띄우는 배포에서는 공유 캐시(Redis 등)가 필요합니다.
 

@@ -15,7 +15,7 @@ class LocalJWTAuth(AuthBackend):
         self._secret = secret
         self._ttl = timedelta(minutes=ttl_minutes)
 
-    def issue(self, principal: Principal) -> str:
+    def issue(self, principal: Principal, *, ttl: timedelta | None = None) -> str:
         now = datetime.now(UTC)
         payload = {
             "sub": str(principal.user_id),
@@ -23,7 +23,7 @@ class LocalJWTAuth(AuthBackend):
             "role": principal.role,
             "iss": _ISSUER,
             "iat": now,
-            "exp": now + self._ttl,
+            "exp": now + (ttl or self._ttl),
         }
         return jwt.encode(payload, self._secret, algorithm="HS256")
 

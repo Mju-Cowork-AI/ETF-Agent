@@ -1,4 +1,5 @@
-// FastAPI 클라이언트. 주소는 VITE_API_BASE_URL, 토큰은 localStorage에 둔다(개발용 local 인증).
+// FastAPI 클라이언트. 주소는 VITE_API_BASE_URL, 토큰은 localStorage에 둔다(개발용 local 인증·익명 토큰).
+// 운영 토큰(ADMIN_AUTH=token)은 sessionStorage에 두고 /admin 요청에만 붙인다.
 // .env.example을 복사만 하면 빈 값이 들어오므로 ??가 아니라 ||로 기본 주소를 쓴다.
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(
   /\/$/,
@@ -7,6 +8,11 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localh
 
 const TOKEN_KEY = 'etf-agent.token'
 const USER_KEY = 'etf-agent.user'
+const ADMIN_TOKEN_KEY = 'etf-agent.admin-token'
+// 익명 모드(로그인 없는 접근). auth.ts가 이 파일을 불러오므로 여기서는 환경변수를 직접 읽는다.
+const ANONYMOUS_MODE = import.meta.env.VITE_AUTH_MODE === 'anonymous'
+/** 운영 API가 401로 운영 토큰을 거절하면 window에 보내는 이벤트(운영 화면이 토큰 입력으로 돌아간다). */
+export const ADMIN_UNAUTHORIZED_EVENT = 'etf-agent:admin-unauthorized'
 
 export type Level = 'beginner' | 'intermediate' | 'expert'
 // level이 null이면 아직 설명 수준을 고르지 않은 사용자(온보딩 화면을 띄운다)
@@ -36,6 +42,31 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY)
 }
 
+// 브라우저 저장소는 사생활 보호 모드 등에서 막힐 수 있어 실패해도 화면이 멈추지 않게 한다.
+export function getAdminToken(): string | null {
+  try {
+    return sessionStorage.getItem(ADMIN_TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setAdminToken(token: string) {
+  try {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token)
+  } catch {
+    /* 저장하지 못하면 다음 요청에서 다시 묻는다 */
+  }
+}
+
+export function clearAdminToken() {
+  try {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+  } catch {
+    /* 무시 */
+  }
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -48,6 +79,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
+  const adminPath = path.startsWith('/admin')
+  const adminToken = adminPath ? getAdminToken() : null
+  if (adminToken) headers.set('X-Admin-Token', adminToken)
   if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   const resp = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
   if (!resp.ok) {
@@ -58,7 +92,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* 본문 없음 */
     }
-    if (resp.status === 401) clearSession()
+    if (resp.status === 401) {
+      if (adminPath && (adminToken || ANONYMOUS_MODE)) {
+        // 운영 토큰이 틀렸거나 없다. 운영 토큰만 지우고 운영 화면에 알린다.
+        // 익명 모드의 대화 토큰은 지우지 않는다(지우면 이 브라우저의 이전 대화를 잃는다).
+        clearAdminToken()
+        window.dispatchEvent(new Event(ADMIN_UNAUTHORIZED_EVENT))
+      } else clearSession()
+    }
     throw new ApiError(resp.status, detail)
   }
   if (resp.status === 204) return undefined as T
@@ -70,6 +111,15 @@ export async function devLogin(email: string): Promise<User> {
   const res = await request<{ access_token: string; user: User }>('/auth/dev-login', {
     method: 'POST',
     body: JSON.stringify({ email }),
+  })
+  saveSession(res.access_token, res.user)
+  return res.user
+}
+
+/** 로그인 없는 접근: 이 브라우저용 익명 사용자를 새로 받는다(서버 ANON_ACCESS_ENABLED=true). */
+export async function anonymousLogin(): Promise<User> {
+  const res = await request<{ access_token: string; user: User }>('/auth/anonymous', {
+    method: 'POST',
   })
   saveSession(res.access_token, res.user)
   return res.user
@@ -112,10 +162,10 @@ export type ChatHandlers = {
 }
 
 /** POST /chat SSE를 fetch 스트림으로 읽는다(EventSource는 POST를 지원하지 않는다).
- * 설명 수준은 보내지 않는다: 서버가 사용자 프로필의 수준으로 답한다.
+ * level을 빼면 서버가 사용자 프로필의 수준으로 답한다(local 로그인). 익명 모드는 채팅 화면에서 고른 수준을 보낸다.
  * 서버가 error 이벤트를 보내거나 done 없이 스트림이 끝나면 예외를 던진다(화면이 '답변 중'에 멈추지 않게). */
 export async function streamChat(
-  body: { message: string; conversation_id?: string | null },
+  body: { message: string; conversation_id?: string | null; level?: Level },
   handlers: ChatHandlers,
   signal?: AbortSignal,
 ): Promise<void> {

@@ -129,4 +129,5 @@ API는 어느 방식이든 **Bearer JWT를 검증**한다(`app/auth/base.py`의 
 - `APP_ENV=prod` — `AUTH_PROVIDER=local`이면 `LOCAL_JWT_SECRET`이 없을 때 기동하지 않는다.
 - `CORS_ORIGINS` — Static Web Apps 주소.
 - `TRACER` — `pg`만 동작한다. `langfuse`는 스텁이라 고르면 API가 기동하지 않는다.
-- `ADMIN_AUTH` — `local`(JWT의 `role=admin`)만 동작한다. `cf_access`(Cloudflare Access)는 스텁이라 운영 API가 501로 응답한다.
+- `ADMIN_AUTH` — 공개 URL에서는 `token`을 쓴다. 운영 API가 `X-Admin-Token` 헤더를 `ADMIN_TOKEN`(Key Vault, 공백을 뺀 32자 이상. 예: `openssl rand -hex 32`)과 비교하고, 팀원은 웹 주소 끝 `#admin`에서 이 값을 넣는다. `local`(JWT의 `role=admin`)은 로컬 개발용이다. `cf_access`(Cloudflare Access)는 스텁이라 운영 API가 501로 응답한다.
+- `ANON_ACCESS_ENABLED=true` — 로그인 없는 접근(브라우저마다 익명 사용자, 토큰 30일). 웹은 `VITE_AUTH_MODE=anonymous`로 빌드한다. `LOCAL_JWT_SECRET`을 바꾸면 기존 익명 토큰이 모두 무효가 되어 사용자가 대화를 잃으므로, 한 번 등록한 뒤에는 바꾸지 않는다.
