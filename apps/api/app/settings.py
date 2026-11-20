@@ -165,6 +165,9 @@ class Settings(BaseSettings):
     # 고위험·ETF 추천은 계속 템플릿, 금칙 표현·개인정보 룰 가드는 그대로 적용. APP_ENV=local에서만 허용.
     general_chat_enabled: bool = False
     general_chat_temperature: float = Field(default=0.7, ge=0, le=2)
+    # 하루 질문 상한(D13): 서비스 전체가 하루(한국 시간)에 받는 질문 수. 0이면 끈다(로컬 기본).
+    # 넘으면 LLM 호출 없이 고정 안내 문구로 끝낸다. 카운트는 DB에 있어 재시작해도 유지된다.
+    daily_question_limit: int = Field(default=0, ge=0)
 
     # --- 외부 데이터 API ---
     data_go_kr_api_key: SecretStr | None = None
