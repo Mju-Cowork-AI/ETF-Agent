@@ -11,7 +11,6 @@ from app.agents.prompts import load_yaml
 from app.privacy import find_pii
 
 _CITATION = re.compile(r"\[\d{1,2}\]")
-_DATE = re.compile(r"\d{4}[-./]\d{1,2}[-./]\d{1,2}")
 _TICKER = re.compile(r"(?<!\d)\d{6}(?!\d)")
 
 # 0장: 유니코드 하이픈·빼기 기호와 특수 공백을 ASCII로 바꾼다(금칙·순위 검사에만 쓴다)
@@ -127,54 +126,203 @@ def find_ranking(text: str) -> list[str]:
     return list(dict.fromkeys(found))
 
 
-def _norm_num(int_part: str, frac: str | None, unit: str | None) -> str:
-    n = int_part.replace(",", "")
-    if frac:
-        n = f"{n}.{frac}"
-    return f"{n}{unit or ''}"
+# --- 숫자 대조(가드 ①) ---
+# Streamlit 기반 core/guardrail.py의 unsupported_numbers 규칙을 옮겨 왔다(원 코드: 조은서).
+# 1. 단위(%·원·배·bp·주·좌·조·억·만)가 붙거나 소수점이 있는 수치만 검사한다. 이름 속 숫자(KODEX 200,
+#    나스닥100), 순위·개수(상위 10개), 인용 번호([1]), 종목코드(6자리)는 검사하지 않는다.
+# 2. 한글 단위(조·억·만)는 값으로 환산해 비교한다(1,785억 원 = 178,500,000,000원).
+# 3. 답변 값이 근거 값을 마지막 표시 자릿수에서 반올림·버림한 값이고, 상대 오차가 rel_tolerance(5%) 이하면
+#    통과한다(근거 0.0099% → 답변 0.01% 통과, 근거 0.0062% → 답변 0.01% 불통과).
+# 4. 날짜(2026-11-11, 2026년 11월 11일, 2026년 11월, 11월 11일, 2026년)는 근거·질문의 날짜와 맞아야 통과한다.
+# 5. 질문에 나온 수치·날짜는 근거로 본다("총보수 0.1% 이하" 질문에 "0.1% 이하"로 답하는 경우).
+
+_UNIT_MULT = {"조": 1e12, "억": 1e8, "만": 1e4}
+_NUM = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
+_LEAD = r"(?<![\d.,A-Za-z])"  # 앞이 숫자·영문이면 수치 시작으로 보지 않는다(ISIN 등)
+_COMPOUND = re.compile(
+    rf"{_LEAD}(?P<sign>-)?(?P<n1>{_NUM})\s*(?P<u1>조|억|만)"
+    rf"(?:\s*(?P<n2>{_NUM})\s*(?P<u2>억|만))?"
+    rf"(?:\s*(?P<n3>{_NUM})\s*(?P<u3>만))?"
+    r"(?:\s*(?:원|주|좌))?"
+)
+_PLAIN = re.compile(rf"{_LEAD}(?P<sign>-)?(?P<n>{_NUM})(?!\d)\s*(?P<unit>%p|%|원|배|bp|주|좌)?")
+_ANY_NUM = re.compile(rf"(?P<sign>-)?(?P<n>{_NUM})")
+
+# 날짜(긴 형식부터 찾고 찾은 자리는 지운다)
+_DATE_FULL = re.compile(r"(?<!\d)(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})(?!\d)")
+_DATE_KO_FULL = re.compile(r"(?<!\d)(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일")
+_DATE_KO_YM = re.compile(r"(?<!\d)(\d{4})\s*년\s*(\d{1,2})\s*월")
+_DATE_KO_MD = re.compile(r"(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일")
+_DATE_KO_Y = re.compile(r"(?<!\d)(\d{4})\s*년")
 
 
-def _canon(int_part: str, frac: str | None) -> str:
-    """표기만 다른 같은 값을 하나로: 쉼표·앞자리 0·소수 끝자리 0을 뗀다(0.0500 → 0.05, 36,180.00 → 36180)."""
-    n = int_part.replace(",", "").lstrip("0") or "0"
-    f = (frac or "").rstrip("0")
-    return f"{n}.{f}" if f else n
+@dataclass(frozen=True, slots=True)
+class _Num:
+    raw: str  # 사유에 쓰는 표기(쉼표·공백 없음, 예: 0.5%, 1785억)
+    value: float
+    unit: float  # 마지막 표시 자릿수의 크기(예: 0.01, 1억)
 
 
-def extract_numbers(text: str) -> list[str]:
-    cfg = _config()["numbers"]
-    pat = re.compile(cfg["pattern"])
-    text = _CITATION.sub(" ", text)
-    text = _DATE.sub(" ", text)
-    text = _TICKER.sub(" ", text)
-    out = []
-    for m in pat.finditer(text):
-        int_part, frac, unit = m.group(1), m.group(2), m.group(3)
-        if cfg.get("require_unit_or_decimal", True) and not (unit or frac):
-            continue
-        out.append(_norm_num(int_part, frac, unit))
+@dataclass(slots=True)
+class _Dates:
+    full: set[tuple[int, int, int]]
+    ym: set[tuple[int, int]]
+    md: set[tuple[int, int]]
+    years: set[int]
+
+    def add(self, y: int, m: int, d: int) -> None:
+        self.full.add((y, m, d))
+        self.ym.add((y, m))
+        self.md.add((m, d))
+        self.years.add(y)
+
+
+def _chars(text: str) -> str:
+    """유니코드 하이픈·특수 공백을 ASCII로(글자 수 유지)."""
+    return _SPACES.sub(" ", _HYPHENS.sub("-", text))
+
+
+def _blank(text: str, span: tuple[int, int]) -> str:
+    s, e = span
+    return text[:s] + " " * (e - s) + text[e:]
+
+
+def _decimals(s: str) -> int:
+    return len(s.split(".")[1]) if "." in s else 0
+
+
+def _to_float(s: str) -> float:
+    return float(s.replace(",", ""))
+
+
+def _collect_dates(text: str) -> _Dates:
+    """근거·질문 속 날짜. 연·월만 있는 표현(2026년 11월)도 그 범위로 인정한다."""
+    out = _Dates(set(), set(), set(), set())
+    for pattern in (_DATE_FULL, _DATE_KO_FULL):
+        for y, m, d in pattern.findall(text):
+            out.add(int(y), int(m), int(d))
+    for y, m in _DATE_KO_YM.findall(text):
+        out.ym.add((int(y), int(m)))
+        out.years.add(int(y))
+    for y in _DATE_KO_Y.findall(text):
+        out.years.add(int(y))
     return out
 
 
-def ungrounded_numbers(answer: str, evidence: list[str]) -> list[str]:
-    """답변 수치 중 근거 텍스트에 없는 것. 단위 없이 숫자만 일치해도 근거로 인정한다.
+def _check_dates(text: str, allowed: _Dates) -> tuple[str, list[str]]:
+    """답변 속 날짜를 근거·질문 날짜와 대조하고 본문에서 지운다. 맞지 않는 날짜 표기를 돌려준다."""
+    rules = (
+        (_DATE_FULL, lambda g: (int(g[0]), int(g[1]), int(g[2])) in allowed.full),
+        (_DATE_KO_FULL, lambda g: (int(g[0]), int(g[1]), int(g[2])) in allowed.full),
+        (_DATE_KO_YM, lambda g: (int(g[0]), int(g[1])) in allowed.ym),
+        (_DATE_KO_MD, lambda g: (int(g[0]), int(g[1])) in allowed.md),
+        (_DATE_KO_Y, lambda g: int(g[0]) in allowed.years),
+    )
+    bad: list[str] = []
+    for pattern, ok in rules:
+        for m in list(pattern.finditer(text)):
+            if not ok(m.groups()):
+                bad.append(re.sub(r"\s+", "", m.group()))
+            text = _blank(text, m.span())
+    return text, bad
 
-    값으로 비교한다: 근거가 '0.0500%'·'36,180.00원'이면 답변의 '0.05%'·'36,180원'도 근거가 있다.
+
+def _extract(text: str, *, require_unit_or_decimal: bool) -> list[_Num]:
+    nums: list[_Num] = []
+    for m in list(_COMPOUND.finditer(text)):
+        value, unit = 0.0, 1.0
+        for n_key, u_key in (("n1", "u1"), ("n2", "u2"), ("n3", "u3")):
+            if m.group(n_key):
+                mult = _UNIT_MULT[m.group(u_key)]
+                value += _to_float(m.group(n_key)) * mult
+                unit = 10 ** -_decimals(m.group(n_key)) * mult
+        if m.group("sign"):
+            value = -value
+        raw = re.sub(r"[\s,]|원$|주$|좌$", "", m.group())
+        nums.append(_Num(raw=raw, value=value, unit=unit))
+        text = _blank(text, m.span())
+    for m in _PLAIN.finditer(text):
+        n, unit_s = m.group("n"), m.group("unit")
+        if require_unit_or_decimal and not unit_s and "." not in n:
+            continue
+        sign = "-" if m.group("sign") else ""
+        value = _to_float(n) * (-1 if sign else 1)
+        raw = f"{sign}{n.replace(',', '')}{unit_s or ''}"
+        nums.append(_Num(raw=raw, value=value, unit=10 ** -_decimals(n)))
+    return nums
+
+
+def _evidence_values(text: str) -> list[float]:
+    """근거·질문 속 모든 수치를 값으로(한글 단위 환산 포함, 단위 없는 수도 포함)."""
+    values: list[float] = []
+    for m in list(_COMPOUND.finditer(text)):
+        v = sum(
+            _to_float(m.group(n)) * _UNIT_MULT[m.group(u)]
+            for n, u in (("n1", "u1"), ("n2", "u2"), ("n3", "u3"))
+            if m.group(n)
+        )
+        values.append(-v if m.group("sign") else v)
+        text = _blank(text, m.span())
+    for m in _ANY_NUM.finditer(text):
+        v = _to_float(m.group("n"))
+        values.append(-v if m.group("sign") else v)
+    return values
+
+
+def _same_value(x: _Num, f: float, rel_tolerance: float) -> bool:
+    """답변 값 x가 근거 값 f를 반올림·버림한 표기이고 상대 오차가 rel_tolerance 이하인지."""
+    for target in (f, -f):
+        if x.value == 0:
+            if target == 0:
+                return True
+            continue
+        eps = 1e-9 * max(1.0, abs(target))
+        diff = abs(x.value - target)
+        rounded = diff <= x.unit / 2 + eps
+        # 버림: 근거가 답변보다 크고 차이가 마지막 자릿수 1칸 미만(경계값은 버림이 아니다: 10 → 9.99 불통과)
+        truncated = 0 <= abs(target) - abs(x.value) < x.unit - eps and (x.value >= 0) == (
+            target >= 0
+        )
+        if (rounded or truncated) and diff <= rel_tolerance * abs(target) + eps:
+            return True
+    return False
+
+
+def _prepare(text: str) -> str:
+    text = _chars(text)
+    text = _CITATION.sub(" ", text)
+    return _TICKER.sub(" ", text)
+
+
+def extract_numbers(text: str) -> list[str]:
+    """답변에서 검사 대상 수치의 표기(날짜·인용 번호·종목코드 제외)."""
+    cfg = _config()["numbers"]
+    text, _ = _check_dates(_prepare(text), _Dates(set(), set(), set(), set()))
+    nums = _extract(text, require_unit_or_decimal=cfg.get("require_unit_or_decimal", True))
+    return [n.raw for n in nums]
+
+
+def ungrounded_numbers(answer: str, evidence: list[str], question: str = "") -> list[str]:
+    """답변 수치·날짜 중 근거(evidence)와 질문에 없는 것. 비어 있으면 통과.
+
+    값으로 비교한다: 근거가 '0.0500%'·'36,180.00원'·'178,500,000,000원'이면 답변의 '0.05%'·'36,180원'·
+    '1,785억 원'도 근거가 있다. 반올림·버림은 상대 오차 rel_tolerance(기본 5%) 안에서만 인정한다.
     """
     cfg = _config()["numbers"]
     if not cfg.get("enabled", True):
         return []
     allow = {a.replace(" ", "") for a in cfg.get("allow", [])}
-    ev_text = " ".join(evidence)
-    ev_nums = set()
-    for m in re.finditer(r"(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?", ev_text):
-        ev_nums.add(_canon(m.group(1), m.group(2)))
-    missing = []
-    for n in extract_numbers(answer):
-        int_part, _, frac = re.sub(r"[^\d.]", "", n).partition(".")
-        if n in allow or _canon(int_part, frac) in ev_nums:
+    tol = float(cfg.get("rel_tolerance", 0.05))
+    ev_text = _chars(" ".join([*evidence, question]))
+    allowed_dates = _collect_dates(ev_text)
+    # 날짜 속 숫자(2026-11-11의 2026·11)가 수치 근거로 섞이지 않게 날짜를 지운 뒤 수치를 모은다
+    allowed_values = _evidence_values(_check_dates(ev_text, allowed_dates)[0])
+
+    text, missing = _check_dates(_prepare(answer), allowed_dates)
+    for x in _extract(text, require_unit_or_decimal=cfg.get("require_unit_or_decimal", True)):
+        if x.raw in allow or any(_same_value(x, f, tol) for f in allowed_values):
             continue
-        missing.append(n)
+        missing.append(x.raw)
     return list(dict.fromkeys(missing))
 
 
@@ -184,6 +332,7 @@ def check_rules(
     included_disclaimers: list[str],
     required_disclaimers: list[str],
     evidence: list[str],
+    question: str = "",
     check_numbers: bool = True,
 ) -> list[str]:
     reasons = find_banned(body) + find_ranking(body)
@@ -193,7 +342,7 @@ def check_rules(
     if _config().get("pii", {}).get("enabled", True):
         reasons += [f"pii:{k}" for k in find_pii(body)]
     if check_numbers:
-        reasons += [f"ungrounded_number:{n}" for n in ungrounded_numbers(body, evidence)]
+        reasons += [f"ungrounded_number:{n}" for n in ungrounded_numbers(body, evidence, question)]
     return reasons
 
 
