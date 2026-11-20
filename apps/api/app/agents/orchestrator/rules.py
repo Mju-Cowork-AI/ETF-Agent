@@ -61,6 +61,9 @@ SEARCH = _P(
     r"찾아\s*(줘|주세요)|검색|목록|리스트|어떤\s*것들|종류.{0,6}(있|알려)|이하|미만|이상",
     r"etf\s*들",
 )
+# D5: disclosure 의도·에이전트는 없지만, 공시 키워드 패턴은 남겨서
+# 공시만 묻는 질문을 out_of_scope로 보낸다.
+DISCLOSURE = _P(r"공시|뉴스|소식|발표|이슈|리포트")
 FAQ_DEF = _P(
     r"(이란|란\s*(뭐|무엇)|뭐야|뭔가요|뭐예요|뭐에요|무엇|뜻|개념|정의|의미|원리|차이|설명해)",
     r"어떻게\s*(돼|되|작동|계산|받|사|거래)",
@@ -96,6 +99,12 @@ def classify_rules(text: str, *, has_entity: bool) -> list[str]:
 
     intents: list[str] = []
     info_kw, faq_kw = _any(ETF_INFO, text), _any(FAQ_DEF, text)
+    disc_kw = _any(DISCLOSURE, text)
+
+    # D5: 공시 키워드만 있고 ETF 정보·개념 키워드가 없으면 범위 밖
+    if disc_kw and not info_kw and not faq_kw:
+        return [Intent.OUT_OF_SCOPE]
+
     if has_entity:
         if info_kw or not faq_kw:
             intents.append(Intent.ETF_INFO)
