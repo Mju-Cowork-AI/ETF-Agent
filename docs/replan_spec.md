@@ -1,6 +1,6 @@
 # 재계획 루프 설계 명세 (D11: 최대 1회)
 
-AI Engineer 작성(11-20). 형식은 [interface.md](interface.md)의 계획 JSON·부족 판정을 따릅니다. 구현은 11-23~24, 테스트는 mock LLM으로 합니다.
+AI Engineer 작성(11-20, 리뷰 반영). 형식은 [interface.md](interface.md)의 계획 JSON·부족 판정을 따릅니다. 구현은 11-23~24, 테스트는 mock LLM으로 합니다.
 
 ## 1. 흐름
 
@@ -25,7 +25,7 @@ orchestrate(계획 JSON) → 병렬 수집(etf_info / etf_search / knowledge) �
 | `low_score` | `knowledge` 결과가 없거나 최고 점수 < `rag_min_score`(현재 0.25) | `tool`, `query`, `top_score` |
 | `unresolved_entity` | ETF가 필요한 의도인데 확정 ETF가 0개이고 퍼지 후보만 있음 | `candidates` |
 
-예: `{"sufficient": false, "reasons": [{"type": "missing_field", "etf_code": "367380", "field": "real_cost"}]}`
+예: `{"sufficient": false, "reasons": [{"type": "missing_field", "etf_code": "367380", "field": "tracking_error"}]}`
 
 ## 3. 부족 사유 전달 형식 (2차 계획 입력)
 
@@ -33,7 +33,7 @@ orchestrate(계획 JSON) → 병렬 수집(etf_info / etf_search / knowledge) �
 
 ```
 [이전 계획] {1차 계획 JSON}
-[수집 결과 요약] etf_info 367380: total_expense_ratio 있음, real_cost 없음
+[수집 결과 요약] etf_info 367380: total_expense_ratio 있음, tracking_error 없음
 [부족 사유] {sufficiency JSON}
 [지시] 이미 모은 결과는 유지된다. 부족한 부분을 채울 "추가" 도구와 인자만 같은 JSON 형식으로 내라.
        더 수집할 방법이 없으면 tools를 빈 배열로 내라. 사용자의 조건을 바꾸거나 완화하지 마라.
@@ -58,21 +58,27 @@ orchestrate(계획 JSON) → 병렬 수집(etf_info / etf_search / knowledge) �
 | `low_score`만 남음(개념 질문) | 고정 문구 "관련 자료를 찾지 못했습니다" | 0회 |
 
 - 필요한 고정 문구: `templates/no_match.md`, `templates/unsupported_etf.md`, `templates/no_document.md`(새로 만듦).
-- **확인 필요:** 지금 코드에는 근거 없이 모델 지식으로 답하는 경로(`grounded=False`)가 있습니다. 상한에 닿은 개념 질문은 이 경로 대신 고정 문구로 끝내는 것으로 제안합니다(근거 인용률 100% 목표).
+- **결정(11-20 리뷰):** 상한에 닿은 개념 질문은 근거 없이 모델 지식으로 답하는 경로(`grounded=False`) 대신 고정 문구로 끝냅니다(근거 인용률 100% 목표).
+  - 과잉 차단 확인: 11-24 개발용 평가에서 `no_document`로 끝난 정상 질문 수를 셉니다. 많으면 근거 없는 답을 허용하지 않고 `rag_min_score`나 문서 쪽을 손봅니다.
 
 ## 6. 상태·그래프 변경 (구현 메모)
 
 - `GraphState`에 `plan`, `sufficiency`, `replan_count` 추가.
 - 노드 `sufficiency` 추가. 수집 노드 → `sufficiency` → `route_sufficiency`가 `compose` 또는 `orchestrate`로 분기.
 - 트레이스에 `replanned`(bool), 부족 사유 type 목록 기록 → plan.md 1-3 "재계획 발동률·추가 호출" 지표.
+- **2차 수집이 문서에서 수치를 가져온 경우**(시나리오 1): DB 값과 기준일이 다를 수 있으므로, finalize가 답변에 그 문서의 출처와 기준일을 붙입니다(DB 항목 기준일과 따로 표시).
 - 비용: 계획 호출 최대 +2회(재시도 포함), 토큰 약 +3,000. 생성 호출은 늘지 않음. 응답 시간 영향은 리허설·개발용 평가에서 확인(p90 10초 목표).
 
-## 7. 테스트 시나리오 5개 (mock LLM)
+## 7. 테스트 시나리오 6개 (mock LLM)
+
+부족 판정 4가지가 모두 한 번 이상 나옵니다(missing_field 1, zero_results 2·3, unresolved_entity 4, low_score 6). 5는 회귀 확인입니다. 수치는 11-20 실데이터(PR #26) 기준입니다.
+
 
 | # | 질문 | 1차 → 판정 | 2차 계획(mock) | 기대 결과 |
 |---|---|---|---|---|
-| 1 | ACE 미국나스닥100 실부담비용 알려줘 | `etf_info`(367380, real_cost) → DB 값 없음 → `missing_field` | `knowledge`("ACE 미국나스닥100 실부담비용") | 문서 근거로 compose. 계획 호출 2회, 생성 1회, `replanned=true` |
-| 2 | 나스닥 추종 ETF 보수 낮은 순으로 보여줘 | `etf_search`(underlying_index="나스닥") → 0건 → `zero_results` | `etf_search`(underlying_index="NASDAQ-100") | 3개 결과로 표 답변(생성 0회) |
-| 3 | 총보수 0.01% 이하 해외 ETF 찾아줘 | `etf_search`(max_fee=0.01) → 0건 → `zero_results` | `tools: []` | 상한 처리: "조건에 맞는 ETF가 없습니다" 고정 문구. 계획 호출 정확히 2회, 3차 계획 없음, 조건 완화 없음 |
+| 1 | ACE 미국나스닥100 추적오차 알려줘 | `etf_info`(367380, tracking_error) → DB에 없는 항목 → `missing_field` | `knowledge`("ACE 미국나스닥100 추적오차") | 문서 근거로 compose. 계획 호출 2회, 생성 1회, `replanned=true` |
+| 2 | 나스닥 추종 ETF 보수 낮은 순으로 보여줘 | `etf_search`(underlying_index="나스닥") → 0건 → `zero_results` | `etf_search`(underlying_index="NASDAQ") | 3개 결과로 표 답변(생성 0회). DB 기초지수 표기가 "NASDAQ 100"이라 한글 "나스닥"은 0건 |
+| 3 | 총보수 0.005% 이하 ETF 찾아줘 | `etf_search`(max_fee=0.005) → 0건(실데이터 최저 0.0062%) → `zero_results` | `tools: []` | 상한 처리: "조건에 맞는 ETF가 없습니다" 고정 문구. 계획 호출 정확히 2회, 3차 계획 없음, 조건 완화(0.01 등) 없음 |
 | 4 | 타이거 나스닥 보수 얼마야 | 퍼지 후보만(133690) → `unresolved_entity` | `etf_info`(133690, total_expense_ratio) | 표 답변. 2차에서 1차와 같은 도구·인자를 내면 코드가 빼고 상한 처리(되묻기) |
 | 5 | KODEX 200 총보수 알려줘 (회귀) | `etf_info`(069500) → 충분 | — | 재계획 없음. 계획 호출 1회, `replanned=false`. 고정 문구 의도("지금 사야 할까?")도 재계획 0회 |
+| 6 | 괴리율 커지는 이유 알려줘 | `knowledge`("괴리율") → 최고 점수 < 0.25 → `low_score` | `knowledge`("괴리율 확대 원인 유동성공급자") | 다른 검색어로 근거 확보 → compose. 2차도 점수가 낮으면 "관련 자료를 찾지 못했습니다" 고정 문구(생성 0회) |
