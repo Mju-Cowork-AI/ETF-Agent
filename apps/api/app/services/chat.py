@@ -33,6 +33,7 @@ from app.observability import TraceRecord
 from app.observability.metrics import observe_chat
 from app.privacy import find_pii_to_block
 from app.repositories import conversations as conv_repo
+from app.repositories import usage as usage_repo
 
 log = get_logger(__name__)
 
@@ -42,6 +43,11 @@ CANCELLED_ANSWER = "답변을 받기 전에 연결이 끊겨 작성을 멈췄습
 CANCELLED_VERDICT = "cancelled"
 # 개인정보 때문에 차단된 질문을 저장할 때 원문 대신 쓰는 문구(그래프 전처리와 같은 검사)
 PII_BLOCKED_MESSAGE = "[개인정보 포함 질문 — 차단됨]"
+# 하루 질문 상한(D13)을 넘었을 때의 고정 안내 문구. LLM을 부르지 않고 대화에도 저장하지 않는다.
+DAILY_LIMIT_MESSAGE = (
+    "오늘 받을 수 있는 질문 수를 모두 채웠습니다. 내일(한국 시간 0시 이후) 다시 이용해 주세요."
+)
+DAILY_LIMIT_VERDICT = "daily_limit"
 # 답변 한 건의 상한 시간(분류 + 답변 + 재생성 + 판정). 넘으면 안전 답변으로 끝낸다.
 ANSWER_TIMEOUT_SECONDS = 120.0
 # 응답 스트림과 분리된 답변 작업. 이벤트 루프는 약한 참조만 가지므로 여기서 붙잡아 둔다.
@@ -91,6 +97,37 @@ async def _profile_level(session: AsyncSession, principal: Principal) -> Level:
 async def stream_chat(c: Container, principal: Principal, req: ChatRequest) -> AsyncIterator[str]:
     request_id = uuid.uuid4().hex
     started = time.perf_counter()
+    # 하루 질문 상한(D13): 그래프·대화 저장 전에 센다. 서비스 전체의 하루(한국 시간) 질문 수이며
+    # 차단·거절될 질문도 1건으로 센다. 세지 못하면 답하지 않는다(상한 없이 LLM을 부르지 않게).
+    limit = c.settings.daily_question_limit
+    if limit:
+        try:
+            async with c.maker() as session:
+                allowed = await usage_repo.count_question(
+                    session, day=usage_repo.kst_today(), limit=limit
+                )
+        except Exception:
+            log.exception("daily_limit_check_failed", request_id=request_id)
+            yield sse("error", {"request_id": request_id, "message": ERROR_MESSAGE})
+            return
+        if not allowed:
+            log.info("chat_daily_limit", request_id=request_id)
+            for piece in split_tokens(DAILY_LIMIT_MESSAGE):
+                yield sse("token", {"text": piece})
+            yield sse("sources", {"sources": []})
+            yield sse(
+                "done",
+                {
+                    "request_id": request_id,
+                    # 대화를 만들거나 저장하지 않는다. 이어 묻던 대화가 있으면 그 id를 돌려준다.
+                    "conversation_id": str(req.conversation_id) if req.conversation_id else None,
+                    "message_id": None,
+                    "intents": [],
+                    "guard": {"verdict": DAILY_LIMIT_VERDICT, "reasons": []},
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                },
+            )
+            return
     # 요청 즉시 첫 status (DB·LLM 작업 전)
     yield sse("status", {"stage": "preprocess", "message": "질문을 이해하는 중"})
 

@@ -95,7 +95,8 @@ export type Source = {
 }
 export type DoneEvent = {
   request_id: string
-  conversation_id: string
+  // 하루 질문 상한 안내처럼 대화를 만들지 않은 응답은 null
+  conversation_id: string | null
   message_id: string | null
   intents: string[]
   guard: { verdict: string; reasons: string[] }

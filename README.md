@@ -92,6 +92,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` | 생성 모델 설정 (`fake` 또는 `openai_compat`) |
 | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIM` | 임베딩 설정. DB 벡터 컬럼 차원은 마이그레이션할 때의 `EMBEDDING_DIM`(기본 1024)으로 정해지므로 이후에는 바꾸지 않음 |
 | `GENERAL_CHAT_ENABLED` | 일반 대화 활성화. `APP_ENV=local`에서만 허용 |
+| `DAILY_QUESTION_LIMIT` | 하루 질문 상한(D13). 서비스 전체가 하루(한국 시간)에 받는 질문 수이며 기본 0(끔). 넘으면 LLM 호출 없이 안내 문구로 끝나고, 카운트는 DB에 있어 재시작해도 유지 |
 | `ADMIN_EMAILS`, `LOCAL_JWT_SECRET` | 개발용 관리자 이메일과 JWT 서명 키. 관리자 역할은 로그인할 때 토큰에 담기므로 목록 변경은 다시 로그인한 뒤 반영 |
 | `METRICS_TOKEN` | `/metrics` 수집용 Bearer 토큰. 비우면 `APP_ENV=local`에서만 열림 |
 | `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키 |
