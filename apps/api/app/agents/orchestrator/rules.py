@@ -43,7 +43,6 @@ RECOMMEND = _P(
     r"(어떤|어느)\s*(etf|이티에프|상품|거).{0,10}(좋|사|살|괜찮|나아)",
     r"포트폴리오\s*(짜|구성|만들)",
 )
-DISCLOSURE = _P(r"공시", r"뉴스", r"소식", r"발표", r"이슈", r"리포트")
 ETF_INFO = _P(
     r"괴리율",
     r"시세",
@@ -98,14 +97,12 @@ def classify_rules(text: str, *, has_entity: bool) -> list[str]:
     intents: list[str] = []
     info_kw, faq_kw = _any(ETF_INFO, text), _any(FAQ_DEF, text)
     if has_entity:
-        if info_kw or not (faq_kw or _any(DISCLOSURE, text)):
+        if info_kw or not faq_kw:
             intents.append(Intent.ETF_INFO)
         if faq_kw and not info_kw:
             intents.append(Intent.FAQ)
     elif _any(SEARCH, text) and (info_kw or _any(DOMAIN, text)):
         intents.append(Intent.ETF_INFO)
-    if _any(DISCLOSURE, text):
-        intents.append(Intent.DISCLOSURE)
     if not intents and (faq_kw or info_kw or _any(DOMAIN, text)):
         intents.append(Intent.FAQ)
     return intents or [Intent.OUT_OF_SCOPE]

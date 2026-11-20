@@ -85,7 +85,7 @@ async def test_disallowed_intent_never_reaches_fallback_in_graph(deps: AgentDeps
     fallback = FakeLLM(model="fallback")
     deps.llm = LLMRouter(primary, fallback, ["faq"])
     st = await run_graph(deps, request_id="t", query="샘플 반도체 최근 공시 알려줘")
-    assert st["intents"] == ["disclosure"]  # 분류는 키워드 규칙으로 대체
+    assert st["intents"] == ["out_of_scope"]  # D5: 공시는 범위 밖
     assert fallback.calls == []
 
 
