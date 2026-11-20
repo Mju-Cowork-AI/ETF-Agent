@@ -72,8 +72,8 @@ seed: check-env ## 샘플 ETF 마스터·시세·공시 적재(P1-DA-02)
 	$(API_EXEC) python -m jobs.seed
 
 .PHONY: ingest
-ingest: check-env ## 샘플 문서 청킹·임베딩 적재(P1-DA-03). 다른 경로: make ingest ARGS="레포 기준 경로 [--force]"
-	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/samples/docs)
+ingest: check-env ## 개념 문서 청킹·임베딩 적재(P1-DA-03). 다른 경로: make ingest ARGS="레포 기준 경로 [--force]"
+	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/docs)
 
 .PHONY: collect
 collect: check-env ## 공공데이터포털·DART 수집(키가 없으면 안내만 출력)

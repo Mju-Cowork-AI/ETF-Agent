@@ -72,6 +72,6 @@ prepare_data() {
   make migrate "$@"
   info "샘플 ETF·시세·공시 적재"
   make seed "$@"
-  info "샘플 문서 ingest"
+  info "개념 문서 ingest"
   make ingest "$@"
 }
