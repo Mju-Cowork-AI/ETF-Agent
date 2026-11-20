@@ -16,6 +16,9 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # 컨테이너도 /workspace에 같은 구조로 둔다
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
+# ADMIN_AUTH=token일 때 ADMIN_TOKEN 최소 길이(공백 제외)
+ADMIN_TOKEN_MIN_LENGTH = 32
+
 
 class AppEnv(StrEnum):
     LOCAL = "local"
@@ -211,10 +214,16 @@ class Settings(BaseSettings):
             self.local_jwt_secret = SecretStr(secrets.token_urlsafe(32))
         if self.anon_access_enabled and self.auth_provider is not AuthProvider.LOCAL:
             raise ValueError("ANON_ACCESS_ENABLED는 AUTH_PROVIDER=local에서만 켤 수 있습니다")
-        if self.admin_auth is AdminAuth.TOKEN and not (
-            self.admin_token and self.admin_token.get_secret_value()
-        ):
-            raise ValueError("ADMIN_AUTH=token이면 ADMIN_TOKEN이 필요합니다")
+        if self.admin_auth is AdminAuth.TOKEN:
+            # 공개 URL의 운영 API(문서 업로드 포함)를 이 값 하나로 막고 틀린 시도 횟수 제한이 없어 길이를 강제한다
+            token = self.admin_token.get_secret_value().strip() if self.admin_token else ""
+            if not token:
+                raise ValueError("ADMIN_AUTH=token이면 ADMIN_TOKEN이 필요합니다")
+            if len(token) < ADMIN_TOKEN_MIN_LENGTH:
+                raise ValueError(
+                    f"ADMIN_TOKEN은 공백을 뺀 {ADMIN_TOKEN_MIN_LENGTH}자 이상이어야 합니다"
+                    "(예: openssl rand -hex 32)"
+                )
         return self
 
     @property

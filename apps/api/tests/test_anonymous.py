@@ -17,7 +17,7 @@ from app.settings import AdminAuth, AppEnv, AuthProvider, Settings
 from tests.conftest import login
 from tests.sse import parse_sse
 
-ADMIN_TOKEN = "test-only-admin-token"  # noqa: S105 (테스트용 값)
+ADMIN_TOKEN = "test-only-admin-token-0123456789abcdef"  # noqa: S105 (테스트용 값, 32자 이상)
 ADMIN_PATHS = ["/admin/traces", "/admin/feedback", "/admin/documents", "/admin/search?q=ETF"]
 
 
@@ -263,6 +263,37 @@ def test_token_admin_requires_admin_token(clean_env: pytest.MonkeyPatch) -> None
         Settings(_env_file=None)  # type: ignore[call-arg]
     clean_env.setenv("ADMIN_TOKEN", ADMIN_TOKEN)
     assert Settings(_env_file=None).admin_auth is AdminAuth.TOKEN  # type: ignore[call-arg]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        " " * 40,  # 공백만
+        "short-token",  # 짧음
+        "a" * 31,  # 32자 미만
+        "  " + "a" * 30 + "  ",  # 공백을 빼면 30자
+    ],
+)
+def test_admin_token_must_be_long_enough(clean_env: pytest.MonkeyPatch, value: str) -> None:
+    clean_env.setenv("DATABASE_URL", DB_URL)
+    clean_env.setenv("ADMIN_AUTH", "token")
+    clean_env.setenv("ADMIN_TOKEN", value)
+    with pytest.raises(ValidationError, match="ADMIN_TOKEN"):
+        Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_admin_token_32_chars_ok_and_compared_without_surrounding_spaces(
+    clean_env: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    clean_env.setenv("DATABASE_URL", DB_URL)
+    clean_env.setenv("ADMIN_AUTH", "token")
+    clean_env.setenv("ADMIN_TOKEN", " " + "b" * 32 + " ")
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    verifier = build_admin_verifier(s)
+    assert asyncio.run(verifier.verify(None, {"x-admin-token": "b" * 32}))
+    assert not asyncio.run(verifier.verify(None, {"x-admin-token": "b" * 31}))
 
 
 def test_anon_requires_local_auth_provider_setting(clean_env: pytest.MonkeyPatch) -> None:

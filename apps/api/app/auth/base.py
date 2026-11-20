@@ -53,7 +53,8 @@ class TokenAdminVerifier(AdminVerifier):
     """ADMIN_AUTH=token: X-Admin-Token 헤더가 ADMIN_TOKEN과 같으면 운영자. 로그인 여부와 무관하다."""
 
     def __init__(self, *, token: str) -> None:
-        self._token = token.encode()
+        # 헤더 쪽도 앞뒤 공백을 떼고 비교하므로 설정값도 같게 맞춘다
+        self._token = token.strip().encode()
 
     async def verify(self, principal: Principal | None, headers: Mapping[str, str]) -> bool:
         given = headers.get(ADMIN_TOKEN_HEADER, "").strip()
