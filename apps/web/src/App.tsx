@@ -4,6 +4,7 @@ import { ChatView } from './components/ChatView'
 import { LevelOnboarding, ProfileDialog } from './components/LevelPicker'
 import { Login } from './components/Login'
 import {
+  ADMIN_UNAUTHORIZED_EVENT,
   clearAdminToken,
   clearSession,
   getAdminToken,
@@ -183,10 +184,23 @@ function AnonymousApp() {
   )
 }
 
-/** 익명 모드의 운영 화면 입구: 운영 토큰(ADMIN_TOKEN)을 받아 이 탭에만 기억한다. */
+/**
+ * 익명 모드의 운영 화면 입구: 운영 토큰(ADMIN_TOKEN)을 받아 이 탭에만 기억한다.
+ * 운영 API가 토큰을 거절(401)하면 토큰 입력 화면으로 돌아간다. 익명 대화 토큰은 건드리지 않는다.
+ */
 function AdminGate() {
   const [token, setToken] = useState<string | null>(getAdminToken)
   const [input, setInput] = useState('')
+  const [rejected, setRejected] = useState(false)
+
+  useEffect(() => {
+    const onRejected = () => {
+      setToken(null)
+      setRejected(true)
+    }
+    window.addEventListener(ADMIN_UNAUTHORIZED_EVENT, onRejected)
+    return () => window.removeEventListener(ADMIN_UNAUTHORIZED_EVENT, onRejected)
+  }, [])
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -195,12 +209,18 @@ function AdminGate() {
     setAdminToken(t)
     setToken(t)
     setInput('')
+    setRejected(false)
   }
 
   if (!token)
     return (
       <form className="admin-gate" onSubmit={submit}>
         <h2>운영 화면</h2>
+        {rejected && (
+          <p className="error" role="alert">
+            운영 토큰이 맞지 않습니다. 다시 넣어 주세요.
+          </p>
+        )}
         <p className="muted small">
           팀원용입니다. 운영 토큰을 넣으면 이 탭을 닫을 때까지 기억합니다.
         </p>
@@ -231,9 +251,7 @@ function AdminGate() {
         >
           운영 토큰 지우기
         </button>
-        <span className="muted small">
-          목록이 &quot;운영자 권한이 필요합니다&quot;로 뜨면 토큰을 지우고 다시 넣으세요.
-        </span>
+        <span className="muted small">토큰이 맞지 않으면 입력 화면으로 돌아갑니다.</span>
       </div>
       <AdminView />
     </>

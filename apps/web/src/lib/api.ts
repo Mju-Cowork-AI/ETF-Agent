@@ -9,6 +9,10 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localh
 const TOKEN_KEY = 'etf-agent.token'
 const USER_KEY = 'etf-agent.user'
 const ADMIN_TOKEN_KEY = 'etf-agent.admin-token'
+// 익명 모드(로그인 없는 접근). auth.ts가 이 파일을 불러오므로 여기서는 환경변수를 직접 읽는다.
+const ANONYMOUS_MODE = import.meta.env.VITE_AUTH_MODE === 'anonymous'
+/** 운영 API가 401로 운영 토큰을 거절하면 window에 보내는 이벤트(운영 화면이 토큰 입력으로 돌아간다). */
+export const ADMIN_UNAUTHORIZED_EVENT = 'etf-agent:admin-unauthorized'
 
 export type Level = 'beginner' | 'intermediate' | 'expert'
 // level이 null이면 아직 설명 수준을 고르지 않은 사용자(온보딩 화면을 띄운다)
@@ -75,7 +79,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const adminToken = path.startsWith('/admin') ? getAdminToken() : null
+  const adminPath = path.startsWith('/admin')
+  const adminToken = adminPath ? getAdminToken() : null
   if (adminToken) headers.set('X-Admin-Token', adminToken)
   if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   const resp = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
@@ -88,9 +93,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       /* 본문 없음 */
     }
     if (resp.status === 401) {
-      // 운영 토큰이 틀렸으면 운영 토큰만 지운다(익명 사용자의 대화 토큰은 그대로 둔다)
-      if (adminToken) clearAdminToken()
-      else clearSession()
+      if (adminPath && (adminToken || ANONYMOUS_MODE)) {
+        // 운영 토큰이 틀렸거나 없다. 운영 토큰만 지우고 운영 화면에 알린다.
+        // 익명 모드의 대화 토큰은 지우지 않는다(지우면 이 브라우저의 이전 대화를 잃는다).
+        clearAdminToken()
+        window.dispatchEvent(new Event(ADMIN_UNAUTHORIZED_EVENT))
+      } else clearSession()
     }
     throw new ApiError(resp.status, detail)
   }
