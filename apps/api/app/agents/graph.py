@@ -1,11 +1,14 @@
 """에이전트 그래프(LangGraph).
 
-질문 → preprocess → orchestrate ─┬→ etf_info ─┐  (자료 수집, LLM 없음, 동시에)
+질문 → preprocess ┬→ template → END (개인정보: 외부 호출 전 차단)
+                  └→ orchestrate ─┬→ etf_info ─┐  (자료 수집, LLM 없음, 동시에)
       (의도 분류 ∥ 문서 검색 선행)  ├→ faq      ─┼→ compose → guard ─┬→ END (통과)
                                 ├→ disclosure┘  (LLM 1회)        ├→ retry → compose (합성만 다시)
                                 ├→ compose (일반 대화, 로컬 전용)   └→ safe → END (재생성 후 실패)
                                 └→ template → END
 
+- 개인정보가 든 질문은 전처리에서 원문으로 검사해 바로 template으로 보낸다. 분류 LLM과
+  임베딩(_prefetch)을 부르기 전이다. 로그·트레이스에는 종류(pii:CARD 등)만 남긴다. # P1-AG-06
 - 의도 분류(LLM)와 문서 검색(임베딩)을 동시에 보낸다. FAQ 수집은 미리 검색한 결과를 쓴다. # P1-AG-02
 - 복수 의도는 수집 노드로 동시에 분기(LangGraph 병렬 superstep)하고, compose가 모은 자료로
   LLM을 한 번만 불러 하나의 답을 쓴다.
@@ -51,6 +54,7 @@ from app.agents.state import (
 from app.llm.base import LLMError
 from app.llm.tracking import LLMUsage, TrackedLLM
 from app.logging import get_logger
+from app.privacy import find_pii_to_block
 from app.tools import etf_search
 
 log = get_logger(__name__)
@@ -70,8 +74,23 @@ def _deps(config: RunnableConfig) -> AgentDeps:
 
 # ---------- 노드 ----------
 async def preprocess_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
-    """# P1-AG-01 정규화 + ETF명·티커 인식(오타·별칭 허용). 엔티티를 상태에 저장."""
+    """# P1-AG-01 개인정보 검사 → 정규화 + ETF명·티커 인식(오타·별칭 허용). 엔티티를 상태에 저장."""
     deps = _deps(config)
+    level = state.get("level") or Level.BEGINNER
+    # 원문으로 검사한다. normalize()가 '@'·'_'를 지워 정규화된 값으로는 이메일을 놓친다.
+    pii = find_pii_to_block(state["query"])
+    if pii:
+        # 원문·값은 남기지 않고 종류만 남긴다
+        log.info("pii_blocked", request_id=state.get("request_id"), kinds=pii)
+        return {
+            "pii_kinds": pii,
+            "intents": [Intent.PII.value],
+            "normalized": "",
+            "entities": [],
+            "level": level,
+            "attempt": 0,
+            "retry_feedback": [],
+        }
     # 첫 status("질문을 이해하는 중")는 채팅 서비스가 요청 즉시 보낸다.
     normalized = normalize(state["query"])
     catalog = await load_catalog(deps.maker)
@@ -81,7 +100,7 @@ async def preprocess_node(state: GraphState, config: RunnableConfig) -> dict[str
     return {
         "normalized": normalized,
         "entities": entities,
-        "level": state.get("level") or Level.BEGINNER,
+        "level": level,
         "attempt": 0,
         "retry_feedback": [],
     }
@@ -192,6 +211,16 @@ async def template_node(state: GraphState, config: RunnableConfig) -> dict[str, 
     deps = _deps(config)
     channel = deps.settings.inquiry_channel
     intent = state["intents"][0]
+    if intent == Intent.PII:
+        return {
+            "answer": (answer := template_answer("pii_blocked", channel)),
+            "body": answer,
+            "sources": [],
+            "verdict": Verdict.TEMPLATE,
+            "guard_history": [[f"pii:{k}" for k in state.get("pii_kinds") or []]],
+            "agents_called": ["template:pii"],
+            "model": "template",
+        }
     if intent == Intent.BLOCKED:
         answer, agent = template_answer("blocked", channel), "template:blocked"
     elif intent == Intent.HIGH_RISK:
@@ -295,6 +324,11 @@ async def safe_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]
 
 
 # ---------- 라우팅 ----------
+def route_preprocess(state: GraphState) -> str:
+    """개인정보가 있으면 분류·검색(외부 호출) 없이 template으로."""
+    return "template" if state.get("pii_kinds") else "orchestrate"
+
+
 def route_intents(state: GraphState) -> list[str]:
     intents = state.get("intents") or [Intent.OUT_OF_SCOPE]
     targets = [i for i in intents if i in _AGENTS]
@@ -326,7 +360,9 @@ def build_graph():
     g.add_node("safe", safe_node)
 
     g.add_edge(START, "preprocess")
-    g.add_edge("preprocess", "orchestrate")
+    g.add_conditional_edges(
+        "preprocess", route_preprocess, {"template": "template", "orchestrate": "orchestrate"}
+    )
     agent_targets = [*_AGENTS, "compose", "template"]
     g.add_conditional_edges("orchestrate", route_intents, agent_targets)
     for name in _AGENTS:

@@ -16,15 +16,16 @@
 
 | 기한 | 안건 |
 |---|---|
-| **11-18(수) 18:00** | 코드 들여오기, D9, D17, D5, D4, D16, D12, Azure 키 관리자, 각자 빠지는 날(용량 확인), 범위 조정 |
-| **11-19(목) 12:00** | D7, D6, D8, 모듈 간 입출력 형식 |
+| ~~11-18(수) 18:00~~ | **결정됨:** 코드 들여오기, D9, D17, D16, D12, Azure 키 관리자, 범위 조정, D4(5개), D5(제외)<br>**확인 필요:** 각자 빠지는 날 |
+| **11-19(목) 12:00** | **결정됨:** D7(사실 비교표만), D8(같은 분기 이내). 반대 없음 / D6(용어집 + 투자설명서), 모듈 간 입출력 형식(AI Engineer 초안 확정), 모델 배치(생성 `gpt-6-sol`, 계획·검증 `gpt-6-luna`) |
+| 11-20(금) PR 리뷰 | **결정됨:** 공개 URL 설정(익명 접근 + 운영 토큰), 익명 토큰 30일, D13 세는 방식(서비스 전체 하루 KST, 리허설 임시값 200건), 가드 사유 id 범주 단위. PR #14·#15·#17 리뷰에서 정함([decisions.md](decisions.md)). D9 웹 배포처는 Cloudflare Pages로 정함(리허설 배포, Cloud Engineer)<br>**채팅방(Cloud Engineer 제안·반대 없음):** D9 수정 — 웹 Cloudflare Pages(Cloud Engineer 개인 계정), DB 지역 일본 동부(koreacentral B1ms 생성 거부, SKU 그대로) |
 | 11-25(수) | D3 |
 | 11-29(일) | D10 |
 
 ## 1. 공유: D1 FastAPI 기반 (결정됨)
 
 - FastAPI 기반(Python + FastAPI + Postgres(pgvector) + React + Docker + LangGraph)으로 정했습니다. 근거는 남은 기간과 기능 완성도입니다. Streamlit 기반은 옮겨 올 강점의 출처로만 씁니다.
-- 위험: 공수가 용량을 넘음(약 3~29h, 제출 마감 11-28 반영), 배포 복잡도(API·웹·DB 따로 배포, 로그인 없는 접근)
+- 위험: 공수와 용량이 비슷함(D6 반영 후 약 218.5h, 용량 대비 약 −15.5~+10.5h), 배포 복잡도(API·웹·DB 따로 배포, 로그인 없는 접근)
 - 대응: 11-21 배포 리허설, 11-22 공수 실측. 옮겨 온 코드는 원 코드 작성자가 리뷰합니다.
 - **올리는 역할:** AI Solutions Architect / **확인:** 전원(이견이 있으면 11-18 18:00까지 채팅방에)
 
@@ -33,6 +34,23 @@
 이유 칸은 "주도: 일이 생김 / 함께: 영향받음"입니다.
 
 ### 11-18(수) 18:00까지
+
+**결과(11-18 기록).** 자세한 내용은 [decisions.md](decisions.md) 결정됨 표에 있습니다. 아래 안건 표는 결정할 때 쓴 자료라 그대로 둡니다.
+
+| 안건 | 상태 | 결과 |
+|---|---|---|
+| 코드 들여오기 | 결정됨 | FastAPI 구조 그대로, git 이력 살림. Cloud Engineer Draft PR, AI Engineer 리뷰(CI 통과 + 로컬 질문 1개) |
+| D9 배포처 | 결정됨 | API Azure Container Apps(koreacentral, 최소 복제본 1), DB Azure PostgreSQL B1ms. 웹은 11-20 리허설 배포에서 Cloudflare Pages로 정함(무료). **11-20 수정:** DB 지역은 일본 동부(koreacentral B1ms 생성 거부, SKU 그대로) |
+| D17 평가셋 규모 | 결정됨 | 60문항(Cloud Engineer·Data Scientist 동의) |
+| D16 멀티턴 | 결정됨 | 포함 |
+| D12 수준별 답변 | 결정됨 | 사용자 선택 3단계, 기본값 "입문", 버튼은 채팅 화면으로 이동 |
+| Azure 키 관리자 | 결정됨 | Cloud Engineer, Key Vault로만 전달 |
+| 범위 조정 | 결정됨 | 재계획 루프·계획 JSON 유지, 약 −18h 축소. 11-22 실측 뒤 다시 검토 |
+| D4 ETF 개수 | 결정됨 | 5개: TIGER 미국나스닥100(133690), KODEX 미국나스닥100(379810, 옛 이름 KODEX 미국나스닥100TR), ACE 미국나스닥100(367380, 자사), KODEX 200(069500), TIGER 미국배당다우존스(458730) |
+| D5 공시 조회 | 결정됨 | 제외. 샘플 공시 끄기(Data Scientist, 1h) |
+| 각자 빠지는 날 | **확인 필요** | 아직 받지 못함. 용량은 지금 값 그대로 |
+
+같은 날 평가 실행 운영(AI Engineer, 첫 실행은 Cloud Engineer가 함께 확인)과 승인 필수 PR 4개 영역(팀 동의, 설정은 Cloud Engineer)도 정했습니다.
 
 | 안건 | 주도 역할 | 함께 정할 역할 | 이유 | 필요한 정보 | 선택지 | 기한 |
 |---|---|---|---|---|---|---|
@@ -47,7 +65,9 @@
 | Azure 키 관리자 지정 | Cloud Engineer | 전원 | 11-19 Azure 모델 연결 전에 키 전달 방식이 정해져야 함 | Key Vault·GitHub Secrets 등록 절차(`scripts/set-secret.sh`), 팀원 `.env` 전달 방식 | 관리자 1명(역할로 지정)과 키 전달 방식 | 11-18 18:00 |
 | 범위 조정 | AI Solutions Architect | 전원 | 범위·일정을 다시 짜는 일이 생김 / 모든 역할의 작업이 줄거나 바뀜 | 용량 약 203~229h(10일) < 공수 약 232h → **약 3~29h 초과**. 아래 "뺄 것 후보" 표 | 후보 중 무엇을 뺄지 / 빼지 않고 11-22 공수 실측 뒤 다시 정함 | 11-18 18:00 |
 
-#### 범위 조정: 뺄 것 후보 (공수가 큰 순서, 결정 전)
+#### 범위 조정: 뺄 것 후보 (공수가 큰 순서, 결정 당시 자료)
+
+**결과:** 재계획 루프·계획 JSON은 유지. 프롬프트 수정 축소(−4h), 문서 검색 튜닝 축소(−4h), 사용자 테스트 10명 → 5명(약 −4h), 앱 토큰 집계 대신 Azure 포털 사용량(약 −6h). 합계 약 −18h.
 
 공수는 공통 기능 집합 공수표 기준 추정입니다. 초과분은 약 3~29h입니다.
 
@@ -63,12 +83,14 @@
 
 ### 11-19(목) 12:00까지
 
+**결과(11-19 기록).** D7 사실 비교표만, D8 같은 분기 이내로 결정됨(기한까지 반대 없음). D6은 용어집 + 투자설명서로 결정됨(기존 개념 문서를 고쳐 씀, [glossary_check.md](glossary_check.md)). 모듈 간 입출력 형식은 AI Engineer 초안으로 확정됨([interface.md](interface.md)). 같은 날 모델 배치(생성 `gpt-6-sol`, 계획·검증 `gpt-6-luna`)도 정함. 자세한 내용은 [decisions.md](decisions.md) 결정됨 표에 있습니다.
+
 | 안건 | 주도 역할 | 함께 정할 역할 | 이유 | 필요한 정보 | 선택지 | 기한 |
 |---|---|---|---|---|---|---|
-| D7 타사 비교 범위 | AI Solutions Architect | AI Engineer | 비교·순위 표현 가드 기준 작업이 생김 / 비교 의도와 프롬프트가 영향받음 | 광고 규제 관련 고객사 확인 사항 | 사실 비교표만 / 자사 상품만 | 11-19 12:00 |
-| D6 FAQ/VOC 대체 자료 | Data Scientist | AI Solutions Architect | 용어집 작성·색인 작업이 생김 / 개념 질문 품질과 평가 문항이 영향받음 | 문서 검색 품질, 용어집 작성 시간 | 용어집 + 투자설명서 / 투자설명서만 | 11-19 12:00 |
-| D8 실부담비용 기준일 범위 | AI Solutions Architect | Data Scientist | 주의 문구·가드 규칙 작업이 생김 / 기준일 데이터 수집·검증이 영향받음 | ETF 5개의 실부담비용 기준일 | 같은 분기 이내 / 1년 이내 | 11-19 12:00 |
-| 모듈 간 입출력 형식(계획 JSON·응답 형식) | AI Engineer | AI Solutions Architect, Data Scientist | 개인정보 차단·숫자 대조·데이터 파이프라인 옮기기가 같은 형식을 써야 함 | 계획 JSON·응답 형식 초안(AIE), 옮겨 올 코드의 입출력 | 초안 확정 / 수정 후 확정 | 11-19 12:00 |
+| D7 타사 비교 범위 | AI Solutions Architect | AI Engineer | 비교·순위 표현 가드 기준 작업이 생김 / 비교 의도와 프롬프트가 영향받음 | 광고 규제 관련 고객사 확인 사항. 자사(ACE) 상품은 1개(D4) | 사실 비교표만 / 자사 상품만<br>**결정됨: 사실 비교표만.** 자사만이면 비교 기능이 사라짐. 평가 표현 금지, 순위는 기준·기준일 명시 | 11-19 12:00(결정됨) |
+| D6 FAQ/VOC 대체 자료 | Data Scientist | AI Solutions Architect | 용어집 작성·색인 작업이 생김 / 개념 질문 품질과 평가 문항이 영향받음 | 문서 검색 품질, 용어집 작성 시간 | 용어집 + 투자설명서 / 투자설명서만<br>**결정됨: 용어집 + 투자설명서.** 기존 개념 문서 13개를 고쳐 쓰고, sample_products.md·pension_isa.md는 적재에서 제외, fees_tax.md 세금 절 삭제, TR ETF 문서 새로 작성(Data Scientist, 약 4.5~5h, [glossary_check.md](glossary_check.md)) | 11-19 12:00(결정됨) |
+| D8 실부담비용 기준일 범위 | AI Solutions Architect | Data Scientist | 주의 문구·가드 규칙 작업이 생김 / 기준일 데이터 수집·검증이 영향받음 | ETF 5개의 실부담비용 기준일: 모두 2026-10-30 | 같은 분기 이내 / 1년 이내<br>**결정됨: 같은 분기 이내.** 5개 기준일이 같아 지금은 주의 문구가 붙지 않음 | 11-19 12:00(결정됨) |
+| 모듈 간 입출력 형식(계획 JSON·응답 형식) | AI Engineer | AI Solutions Architect, Data Scientist | 개인정보 차단·숫자 대조·데이터 파이프라인 옮기기가 같은 형식을 써야 함 | 계획 JSON·응답 형식 초안(AIE), 옮겨 올 코드의 입출력 | 초안 확정 / 수정 후 확정<br>**결정됨: 초안 확정.** 형식과 규칙은 [interface.md](interface.md) | 11-19 12:00(결정됨) |
 
 ### 나중에 정하는 안건
 
@@ -79,8 +101,13 @@
 
 ## 3. 확정 뒤 바로 할 일
 
-- [ ] decisions.md에 결정 기록(AI Solutions Architect)
+- [x] decisions.md에 결정 기록(AI Solutions Architect). 11-18·11-19·11-20 기록
 - [ ] 작업 카드 만들기: 담당자 1명 = 브랜치 1개(전원). [roles.md](roles.md) 3장의 (a)·(b)·(c)를 먼저 만듭니다
-- [ ] README 팀원별 역할에 이름 채우기(AI Solutions Architect)
-- [ ] 코드 들여오기 시작(Cloud Engineer, 위 결정대로)
-- [ ] `.env.example` 변수 이름을 들여온 코드에 맞추기(Cloud Engineer)
+- [ ] README 팀원별 역할에 이름 채우기(AI Solutions Architect, 제출 전)
+- [x] 코드 들여오기(Cloud Engineer, #6)
+- [x] `.env.example` 변수 이름을 들여온 코드에 맞추기(Cloud Engineer, #6)
+- [x] 웹 배포 방식 정하고 D9 고치기(Cloud Engineer가 Cloudflare Pages로 정함, D9 수정 11-20)
+- [ ] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer)
+- [ ] 익명 발급 반복 호출 제한 결정(AI Solutions Architect, 11-28 최종 배포 전, 이슈)
+- [ ] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9)
+- [ ] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설)

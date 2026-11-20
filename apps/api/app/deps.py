@@ -5,7 +5,9 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 
 from app.auth import AuthError, Principal
+from app.auth.base import TOKEN_ADMIN
 from app.container import Container
+from app.settings import AdminAuth
 
 
 def get_container(request: Request) -> Container:
@@ -50,15 +52,23 @@ async def require_admin(
     c: ContainerDep,
     principal: Annotated[Principal | None, Depends(optional_principal)],
 ) -> Principal:
-    """# P1-API-04 ADMIN_AUTH=local: role=admin, cf_access: Cloudflare Access(스텁)."""
+    """# P1-API-04 ADMIN_AUTH=local: role=admin, token: X-Admin-Token, cf_access: 스텁.
+
+    token 방식은 로그인 없이 운영 토큰만으로 통과한다(공개 URL에는 익명 사용자뿐이라).
+    """
     try:
         ok = await c.admin_verifier.verify(principal, request.headers)
     except NotImplementedError as e:
         raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(e)) from e
-    if not ok or principal is None:
-        code = status.HTTP_401_UNAUTHORIZED if principal is None else status.HTTP_403_FORBIDDEN
+    if not ok:
+        token_mode = c.settings.admin_auth is AdminAuth.TOKEN
+        code = (
+            status.HTTP_401_UNAUTHORIZED
+            if principal is None or token_mode
+            else status.HTTP_403_FORBIDDEN
+        )
         raise HTTPException(code, "운영자 권한이 필요합니다")
-    return principal
+    return principal or TOKEN_ADMIN
 
 
 PrincipalDep = Annotated[Principal, Depends(current_principal)]

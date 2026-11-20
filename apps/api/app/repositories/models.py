@@ -205,3 +205,15 @@ class Trace(TimestampMixin, Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     model: Mapped[str | None] = mapped_column(Text)
     fallback_used: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+
+
+class DailyQuestionCount(Base):
+    """서비스 전체의 하루(KST) 질문 수. 하루 질문 상한(D13)이 재시작 뒤에도 유지되도록 DB에 둔다."""
+
+    __tablename__ = "daily_question_counts"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)  # 한국 시간 날짜
+    count: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

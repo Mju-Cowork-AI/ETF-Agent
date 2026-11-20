@@ -1,6 +1,6 @@
 # ETF-Agent: ETF 질의응답 챗봇
 
-> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. 예: `https://<앱 이름>.<배포처 주소>`)
+> **배포된 서비스:** (11-21 배포 리허설 후 URL 기입. Azure Container Apps 주소 형식: `https://<앱 이름>.<환경 고유 이름>.<리전>.azurecontainerapps.io`)
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
@@ -16,6 +16,7 @@
 - **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 결과가 부족하면 한 번 더 계획하고, 답을 쓴 뒤 다른 LLM이 검증합니다. 반복 횟수와 안전 경계는 코드가 제한합니다.
 - **설계 원칙:** LLM은 숫자를 만들지 않습니다. 수치는 DB에서만 가져오고, 기준일과 투자 고지는 코드가 붙입니다.
 - **기술 스택:** Python, FastAPI, LangGraph, Postgres(pgvector), React, Docker, Azure OpenAI
+- **배포:** API·웹은 **Azure Container Apps**(최소 복제본 1), DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
 - **배경:** LLM 기반 ETF 질의응답 챗봇 구축 RFP를 바탕으로 합니다. 자세한 기획은 [docs/plan.md](docs/plan.md)에 있습니다.
 
 ## 팀원별 역할
@@ -56,6 +57,8 @@ cp .env.local.example .env.local
 ./scripts/run-local.sh
 ```
 
+- Azure 엔드포인트·키·배포 이름은 Key Vault에서 받습니다(키 관리자: Cloud Engineer). 보관 규칙은 [docs/dev-guide.md](docs/dev-guide.md) 6장. **키는 절대 커밋하지 않습니다.**
+
 기본 모델은 `gpt-5.4-nano`, 임베딩은 `text-embedding-3-small`(1024차원)입니다. 질문과 검색된 문서 일부가 모델 제공자에게 전송됩니다. `.env.local.example`은 로컬 일반 대화 모드를 켭니다. 끄려면 `.env.local`에서 `GENERAL_CHAT_ENABLED=false`로 설정하세요.
 
 설정 변경 후 `./scripts/run-local.sh`를 다시 실행합니다. 로그는 `./scripts/run-local.sh logs`, 종료는 `./scripts/run-local.sh down`으로 확인하거나 실행할 수 있습니다. fake와 실제 임베딩을 전환할 때는 해당 실행 스크립트로 문서를 다시 적재하세요. 스크립트는 샘플 문서만 다시 임베딩하므로 운영 화면에서 올린 문서는 다시 업로드해야 합니다.
@@ -89,28 +92,32 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` | 생성 모델 설정 (`fake` 또는 `openai_compat`) |
 | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIM` | 임베딩 설정. DB 벡터 컬럼 차원은 마이그레이션할 때의 `EMBEDDING_DIM`(기본 1024)으로 정해지므로 이후에는 바꾸지 않음 |
 | `GENERAL_CHAT_ENABLED` | 일반 대화 활성화. `APP_ENV=local`에서만 허용 |
+| `DAILY_QUESTION_LIMIT` | 하루 질문 상한(D13). 서비스 전체가 하루(한국 시간)에 받는 질문 수이며 기본 0(끔). 넘으면 LLM 호출 없이 안내 문구로 끝나고, 카운트는 DB에 있어 재시작해도 유지 |
 | `ADMIN_EMAILS`, `LOCAL_JWT_SECRET` | 개발용 관리자 이메일과 JWT 서명 키. 관리자 역할은 로그인할 때 토큰에 담기므로 목록 변경은 다시 로그인한 뒤 반영 |
+| `ANON_ACCESS_ENABLED`, `VITE_AUTH_MODE=anonymous` | 로그인 없는 접근(공개 URL). 브라우저마다 익명 사용자를 발급하고, 설명 수준은 채팅 화면 버튼으로 고름(기본 입문). 기본은 꺼짐 |
+| `ADMIN_AUTH=token`, `ADMIN_TOKEN` | 공개 URL의 운영 화면 보호. 팀원은 주소 끝에 `#admin`을 붙여 운영 토큰을 넣음 |
 | `METRICS_TOKEN` | `/metrics` 수집용 Bearer 토큰. 비우면 `APP_ENV=local`에서만 열림 |
 | `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키 |
 
 ### API
 
-인증이 필요한 API는 개발용 로그인으로 받은 JWT를 사용합니다. 상세 요청·응답은 실행 후 `/docs`에서 확인할 수 있습니다.
+인증이 필요한 API는 개발용 로그인이나 익명 발급으로 받은 JWT를 사용합니다. 상세 요청·응답은 실행 후 `/docs`에서 확인할 수 있습니다.
 
 | 경로 | 기능 |
 | --- | --- |
 | `GET /health`, `GET /metrics` | 상태 확인과 Prometheus 메트릭(`METRICS_TOKEN` 설정 시 Bearer 토큰 필요) |
 | `POST /auth/dev-login`, `GET/PATCH /auth/me` | 로컬 로그인과 설명 수준 설정 |
+| `POST /auth/anonymous` | 로그인 없는 접근용 익명 사용자·토큰(30일) 발급. `ANON_ACCESS_ENABLED=true`일 때만 열림 |
 | `POST /chat` | 채팅 SSE (`status` → `token` → `sources` → `done`). 질문을 저장하지 못하거나 답변 작업이 예기치 않게 중단되면 `done` 없이 `error`로 끝남 |
 | `GET/DELETE /history`, `GET/DELETE /history/{id}` | 대화 조회·삭제 |
 | `POST /feedback` | 좋아요·싫어요·정정 피드백 |
-| `/admin/traces`, `/admin/feedback`, `/admin/documents`, `/admin/search` | 관리자 전용 운영 API |
+| `/admin/traces`, `/admin/feedback`, `/admin/documents`, `/admin/search` | 관리자 전용 운영 API(`ADMIN_AUTH=token`이면 `X-Admin-Token` 헤더 필요) |
 
 대화를 삭제하면 메시지도 삭제되지만 피드백과 트레이스는 남습니다. 대화 내용은 저장 전 개인정보 패턴을 마스킹하며, 트레이스에는 질문 원문을 저장하지 않도록 구성되어 있습니다.
 
 ### 현재 범위와 배포
 
-로컬 실행이 중심인 MVP입니다. 배포 구성은 Azure와 Supabase를 계획하고 있으며, 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
+로컬 실행이 중심인 MVP입니다. 배포는 API·웹을 Azure Container Apps(최소 복제본 1)에, DB를 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 공개 URL은 로그인 없는 접근(`ANON_ACCESS_ENABLED=true`, `VITE_AUTH_MODE=anonymous`, `ADMIN_AUTH=token`)으로 엽니다. 하루 질문 상한(D13)은 아직 없습니다. 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
 
 가드의 검증 모델을 호출하지 못하거나 판정 결과를 두 번 연속 해석하지 못하면 답변을 내보내지 않고 안전 답변으로 대체합니다. 캐시는 프로세스별 메모리에 있으므로 별도 프로세스의 데이터 적재나 다른 API 인스턴스에 캐시 삭제가 전파되지 않습니다. 로컬에서는 `make restart`로 해결하고, API 인스턴스를 여러 개 띄우는 배포에서는 공유 캐시(Redis 등)가 필요합니다.
 

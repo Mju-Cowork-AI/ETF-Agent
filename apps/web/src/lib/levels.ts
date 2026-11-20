@@ -24,3 +24,24 @@ export const LEVELS: { value: Level; label: string; who: string; how: string }[]
 
 export const levelLabel = (level: Level | null) =>
   LEVELS.find((l) => l.value === level)?.label ?? '미설정'
+
+// 익명 모드의 채팅 화면 수준 버튼(D12). 기본값은 입문, 이 브라우저에만 기억한다.
+const CHAT_LEVEL_KEY = 'etf-agent.chat-level'
+export const DEFAULT_CHAT_LEVEL: Level = 'beginner'
+
+export function getChatLevel(): Level {
+  try {
+    const v = localStorage.getItem(CHAT_LEVEL_KEY)
+    return LEVELS.some((l) => l.value === v) ? (v as Level) : DEFAULT_CHAT_LEVEL
+  } catch {
+    return DEFAULT_CHAT_LEVEL
+  }
+}
+
+export function saveChatLevel(level: Level) {
+  try {
+    localStorage.setItem(CHAT_LEVEL_KEY, level)
+  } catch {
+    /* 저장하지 못해도 이번 화면에서는 고른 수준을 쓴다 */
+  }
+}
