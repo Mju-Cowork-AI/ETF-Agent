@@ -77,7 +77,7 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
     all_as_of = compare.as_of_text(all_dates)
 
     if len(all_dates) > 1:
-        as_of_line = f"기준일: 상품마다 다릅니다({all_as_of}). 표의 기준일 항목을 확인하세요."
+        as_of_line = f"기준일: 항목마다 다릅니다({all_as_of}). 표의 기준일 항목을 확인하세요."
     elif all_as_of:
         as_of_line = f"기준일: {all_as_of}"
     else:
