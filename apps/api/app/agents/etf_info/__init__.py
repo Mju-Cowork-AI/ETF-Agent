@@ -76,7 +76,11 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
     all_dates = sorted(set(dates) | set(master_dates))
     all_as_of = compare.as_of_text(all_dates)
 
-    if len(all_dates) > 1:
+    if len(all_dates) > 1 and len(dates) > 1:
+        # 상품끼리 시세 기준일이 다른 경우
+        as_of_line = f"기준일: 상품마다 다릅니다({all_as_of}). 표의 '시세 기준일'을 확인하세요."
+    elif len(all_dates) > 1:
+        # 시세 기준일은 같거나 없고, 마스터 기준일(실부담비용·순자산)만 다른 경우
         as_of_line = f"기준일: 항목마다 다릅니다({all_as_of}). 표의 기준일 항목을 확인하세요."
     elif all_as_of:
         as_of_line = f"기준일: {all_as_of}"
