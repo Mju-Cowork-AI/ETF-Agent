@@ -103,7 +103,7 @@ START → preprocess ─(개인정보·인젝션·해킹 차단)─────�
 | 구성 | 기술 | 비고 |
 |---|---|---|
 | API | FastAPI, LangGraph(위 흐름), SSE로 검증 통과 답만 전송 | 배포: **Azure Container Apps, 최소 복제본 1**(D9). 요청 시간 상한 240초 |
-| 웹 | React(TypeScript) | 배포: **Azure Container Apps**(D9). 로그인 없이 사용(D13), 수준 선택 버튼은 채팅 화면(D12) |
+| 웹 | React(TypeScript) | 배포: **Cloudflare Pages**(D9, 무료. 11-20 리허설 배포에서 정함). API와 주소가 달라 API `CORS_ORIGINS`에 웹 주소를 넣음. 로그인 없이 사용(D13), 수준 선택 버튼은 채팅 화면(D12) |
 | DB | Postgres + pgvector, Alembic 마이그레이션 | 배포: **Azure Database for PostgreSQL flexible server B1ms**(D9, 무료 계정 12개월 무료 범위). ETF 데이터, 문서 색인, 대화·피드백(마스킹), 하루 질문 카운트 |
 | 로컬 실행 | Docker Compose | 팀원 4명 모두 같은 환경 |
 
