@@ -99,7 +99,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | `ANON_ACCESS_ENABLED`, `VITE_AUTH_MODE=anonymous` | 로그인 없는 접근(공개 URL). 브라우저마다 익명 사용자를 발급하고, 설명 수준은 채팅 화면 버튼으로 고름(기본 입문). 기본은 꺼짐 |
 | `ADMIN_AUTH=token`, `ADMIN_TOKEN` | 공개 URL의 운영 화면 보호. 팀원은 주소 끝에 `#admin`을 붙여 운영 토큰을 넣음 |
 | `METRICS_TOKEN` | `/metrics` 수집용 Bearer 토큰. 비우면 `APP_ENV=local`에서만 열림 |
-| `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키 |
+| `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키. `DATA_GO_KR_API_KEY`는 쓰지 않음(공공데이터 API 수집을 11-21 범위 조정 2차에서 뺌). 수집 코드 `jobs/collector`가 남아 있는 동안 항목만 둠 |
 
 ### API
 
