@@ -487,6 +487,33 @@ button.chip {
 .correction textarea {
   flex: 1;
 }
+/* 익명 모드: 입력창 위 설명 수준 버튼 */
+.level-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.level-bar + .composer {
+  border-top: none;
+}
+.admin-gate {
+  max-width: 420px;
+  margin: 40px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px;
+}
+.admin-gate-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+}
 .composer {
   display: flex;
   gap: 8px;

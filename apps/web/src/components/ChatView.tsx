@@ -6,7 +6,9 @@ import {
   listConversations,
   streamChat,
   type Conversation,
+  type Level,
 } from '../lib/api'
+import { LEVELS, getChatLevel, saveChatLevel } from '../lib/levels'
 import { MessageView, type ChatMessage } from './MessageView'
 
 const EXAMPLES = [
@@ -19,7 +21,18 @@ const EXAMPLES = [
 let seq = 0
 const nextKey = () => `m${++seq}`
 
-export function ChatView({ onAuthError }: { onAuthError: () => void }) {
+/**
+ * chooseLevel: 익명 모드처럼 프로필이 없을 때, 입력창 위 수준 버튼으로 고르고 질문마다 level을 보낸다.
+ * false(local 로그인)면 버튼 없이 서버가 프로필 수준으로 답한다.
+ */
+export function ChatView({
+  onAuthError,
+  chooseLevel = false,
+}: {
+  onAuthError: () => void
+  chooseLevel?: boolean
+}) {
+  const [level, setLevel] = useState<Level>(getChatLevel)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -136,7 +149,11 @@ export function ChatView({ onAuthError }: { onAuthError: () => void }) {
     abortRef.current = ctrl
     try {
       await streamChat(
-        { message: question, conversation_id: conversationId },
+        {
+          message: question,
+          conversation_id: conversationId,
+          ...(chooseLevel ? { level } : {}),
+        },
         {
           onStatus: (status) => patch(aKey, (m) => ({ ...m, status })),
           onToken: (t) => patch(aKey, (m) => ({ ...m, content: m.content + t })),
@@ -247,6 +264,29 @@ export function ChatView({ onAuthError }: { onAuthError: () => void }) {
           ))}
           <div ref={bottomRef} />
         </div>
+
+        {chooseLevel && (
+          <div className="level-bar" role="radiogroup" aria-label="설명 수준">
+            <span className="muted small">설명 수준</span>
+            {LEVELS.map((l) => (
+              <button
+                type="button"
+                key={l.value}
+                role="radio"
+                aria-checked={level === l.value}
+                className={level === l.value ? 'tab on' : 'tab'}
+                title={l.who}
+                disabled={busy}
+                onClick={() => {
+                  setLevel(l.value)
+                  saveChatLevel(l.value)
+                }}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form className={`composer ${busy ? 'busy' : ''}`} onSubmit={submit}>
           <textarea
