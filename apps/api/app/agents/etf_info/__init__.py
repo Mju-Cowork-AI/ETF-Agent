@@ -21,7 +21,6 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             prices = await price_lookup.latest(session, [e.ticker for e in etfs])
             # 요청한 상품의 시세만 본다(상품마다 기준일이 다를 수 있다)
             dates = compare.as_of_dates([prices.get(e.ticker) for e in etfs])
-            as_of = compare.as_of_text(dates)
             if len(etfs) >= 2:
                 table = compare.compare_table(etfs, prices)
                 title = f"{len(etfs)}개 상품 비교"
@@ -67,18 +66,37 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
                     f"검색 결과({filters.describe()}) 총보수가 낮은 순으로 {len(etfs)}건만 표시"
                     "(조건에 맞는 상품이 더 있습니다)"
                 )
-            dates, as_of = [], None
+            dates = []
 
-    if len(dates) > 1:
-        as_of_line = f"기준일: 상품마다 다릅니다({as_of}). 표의 '시세 기준일'을 확인하세요."
-    elif as_of:
-        as_of_line = f"기준일: {as_of} (일별 데이터)"
+    # 샘플 데이터인지 판별: 모든 ETF가 source='sample'이면 샘플
+    is_sample = all(e.source == "sample" for e in etfs)
+
+    # 기준일 문구: 시세 기준일과 마스터 기준일(실부담비용·순자산)을 모두 모은다
+    master_dates = compare.master_as_of_dates(etfs) if tickers else []
+    all_dates = sorted(set(dates) | set(master_dates))
+    all_as_of = compare.as_of_text(all_dates)
+
+    if len(all_dates) > 1:
+        as_of_line = f"기준일: 상품마다 다릅니다({all_as_of}). 표의 기준일 항목을 확인하세요."
+    elif all_as_of:
+        as_of_line = f"기준일: {all_as_of}"
     else:
-        as_of_line = "출처: ETF 마스터(샘플)"
+        as_of_line = "출처: ETF 마스터(샘플)" if is_sample else "출처: ETF 마스터"
     data = "\n\n".join([f"**{title}**", table, *notes, as_of_line])
+
+    # 출처 제목: 샘플이면 "(샘플)", 실데이터면 CSV 출처를 중복 없이 모은다
+    if is_sample:
+        source_title = "ETF 마스터·일별 시세 DB(샘플)"
+    else:
+        raw_sources: list[str] = []
+        for e in etfs:
+            for s in (e.fee_source, e.actual_expense_source, e.net_assets_source):
+                if s and s not in raw_sources:
+                    raw_sources.append(s)
+        source_title = ", ".join(raw_sources) if raw_sources else "ETF 마스터"
     source = Source(
-        title="ETF 마스터·일별 시세 DB(샘플)",
-        location=f"기준일 {as_of}" if as_of else None,
+        title=source_title,
+        location=f"기준일 {all_as_of}" if all_as_of else None,
         kind="etf_data",
     )
     return AgentResult(
