@@ -63,7 +63,6 @@ function LocalApp() {
     <div className="app">
       <header className="topbar">
         <strong className="brand">ETF Agent</strong>
-        <span className="sample-tag">샘플 데이터</span>
         <nav>
           <button
             type="button"
@@ -163,7 +162,6 @@ function AnonymousApp() {
     <div className="app">
       <header className="topbar">
         <strong className="brand">ETF Agent</strong>
-        <span className="sample-tag">샘플 데이터</span>
         {adminOpen && (
           <nav>
             <button
