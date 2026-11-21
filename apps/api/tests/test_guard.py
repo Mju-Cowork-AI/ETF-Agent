@@ -47,8 +47,10 @@ def test_ungrounded_numbers() -> None:
     evidence = ["| 종가 | 36,180원 |\n| 괴리율 | 0.23% |"]
     assert ungrounded_numbers("종가는 36,180원, 괴리율은 0.23%입니다.", evidence) == []
     assert ungrounded_numbers("괴리율은 0.5%입니다.", evidence) == ["0.5%"]
-    # 날짜·인용 번호·티커는 검사하지 않는다
-    assert ungrounded_numbers("2026-11-11 기준 900010 [1]", evidence) == []
+    # 인용 번호·티커는 검사하지 않는다. 날짜는 근거 날짜와 대조한다(근거에 없는 날짜는 걸린다)
+    assert ungrounded_numbers("900010 [1]", evidence) == []
+    assert ungrounded_numbers("2026-11-11 기준", evidence) == ["2026-11-11"]
+    assert ungrounded_numbers("2026-11-11 기준", [*evidence, "기준일: 2026-11-11"]) == []
 
 
 def test_numbers_are_compared_by_value_not_by_notation() -> None:
@@ -152,6 +154,15 @@ async def test_ungrounded_number_in_summary_blocks(deps: AgentDeps, fake_llm: Fa
     assert st["verdict"] == "pass_after_retry"
     assert "9.99%" not in st["answer"]
     assert "ungrounded_number:9.99%" in st["guard_history"][0]
+
+
+async def test_ungrounded_date_in_summary_blocks(deps: AgentDeps, fake_llm: FakeLLM) -> None:
+    """근거에 없는 날짜를 쓴 답변은 반려되고, 재생성(DB 표만)으로 통과한다."""
+    fake_llm.push("answer", "샘플 코스피200의 괴리율은 2025-01-02 기준으로 확인됩니다.")
+    st = await run_graph(deps, request_id="t", query="샘플 코스피200 괴리율")
+    assert st["verdict"] == "pass_after_retry"
+    assert "2025-01-02" not in st["answer"]
+    assert "ungrounded_number:2025-01-02" in st["guard_history"][0]
 
 
 @pytest.mark.parametrize(

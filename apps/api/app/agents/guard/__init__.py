@@ -14,6 +14,7 @@ async def run_guard(
     required_disclaimers: list[str],
     evidence: list[str],
     generated: bool,
+    question: str = "",
     grounded: bool = True,
 ) -> GuardResult:
     reasons = check_rules(
@@ -21,6 +22,8 @@ async def run_guard(
         included_disclaimers=included_disclaimers,
         required_disclaimers=required_disclaimers,
         evidence=evidence,
+        # 질문에 나온 수치·날짜는 근거로 본다(숫자 대조)
+        question=question,
         # 근거 없는 일반 대화 답변은 대조할 근거가 없어 수치 검사를 하지 않는다.
         check_numbers=grounded,
     )
