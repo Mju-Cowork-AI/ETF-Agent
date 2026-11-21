@@ -33,7 +33,7 @@ from app.agents import disclosure, etf_info, faq
 from app.agents.guard import run_guard
 from app.agents.guard.judge import UNVERIFIED
 from app.agents.guard.templates import high_risk_answer, safe_answer, template_answer
-from app.agents.orchestrator import classify
+from app.agents.orchestrator import plan as make_plan
 from app.agents.orchestrator.rules import (
     is_blocked,
     is_domain,
@@ -43,6 +43,7 @@ from app.agents.orchestrator.rules import (
 )
 from app.agents.preprocess import load_catalog, normalize, recognize_entities
 from app.agents.state import (
+    AGENT_INTENTS,
     AgentDeps,
     AgentResult,
     EtfEntity,
@@ -107,15 +108,22 @@ async def preprocess_node(state: GraphState, config: RunnableConfig) -> dict[str
 
 
 async def orchestrate_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
-    """# P1-AG-02 의도 분류(LLM JSON → 실패 시 키워드 규칙)."""
+    """# P1-AG-02 계획 JSON(의도·도구·거절할 부분, interface.md) → 실패 시 키워드 규칙."""
     deps = _deps(config)
     await deps.emit("orchestrate", "질문 유형을 파악하는 중")
     entities = state.get("entities") or []
-    # 의도 분류(LLM)와 문서 검색(임베딩·DB)을 동시에 보낸다. 캐시 적중이 예상되면 검색은 생략.
-    (intents, source), prefetched = await asyncio.gather(
-        classify(deps.llm, state["normalized"], has_entity=bool(entities)),
+    # 계획(LLM)과 문서 검색(임베딩·DB)을 동시에 보낸다. 캐시 적중이 예상되면 검색은 생략.
+    p, prefetched = await asyncio.gather(
+        make_plan(
+            deps.llm,
+            state["normalized"],
+            has_entity=bool(entities),
+            model=deps.settings.plan_model_name,
+        ),
         _prefetch(state, deps),
     )
+    intents, source = list(p.intents), p.source
+    log.info("plan", request_id=state.get("request_id"), **p.summary())
     context = state.get("context_tickers") or []
     # 멀티턴: ETF 없이 정보 항목만 묻는 후속 질문('그럼 괴리율은?')은 직전 턴 ETF의 정보 질문으로 본다.
     if (
@@ -134,7 +142,17 @@ async def orchestrate_node(state: GraphState, config: RunnableConfig) -> dict[st
         "intents": intents,
         "intent_source": source,
         "prefetched_chunks": prefetched,
+        "plan": p.summary(),
+        "plan_conditions": p.conditions(),
+        # 고정 문구로 끝나는 질문에는 거절 문장을 따로 붙이지 않는다
+        "refuse": p.refuse if any(i in AGENT_INTENTS for i in intents) else [],
     }
+    # 질문에서 ETF를 못 찾았는데 계획이 DB에 있는 종목코드를 골랐으면 그 ETF로 조회한다
+    if not entities and Intent.ETF_INFO in intents and (codes := p.etf_codes()):
+        catalog = {c.ticker: c for c in await load_catalog(deps.maker)}
+        if picked := [c for c in codes if c in catalog]:
+            update["entities"] = [EtfEntity(t, catalog[t].name, "", 0.0, "plan") for t in picked]
+            entities = update["entities"]
     # 이번 질문에 ETF가 없으면 직전 턴의 ETF를 이어 쓴다(ETF 정보·공시 의도일 때만).
     if not entities and context and (Intent.ETF_INFO in intents or Intent.DISCLOSURE in intents):
         catalog = {c.ticker: c for c in await load_catalog(deps.maker)}
@@ -247,6 +265,9 @@ async def compose_node(state: GraphState, config: RunnableConfig) -> dict[str, A
     intents = state["intents"]
     c = await composer.synthesize(state, deps)
     ids = composer.required_disclaimers(intents)
+    if not c.failed and (refuse := state.get("refuse")):
+        # 섞인 질문: 사실 부분 답 뒤에 답하지 않은 부분의 거절 문장을 코드가 붙인다
+        c = replace(c, body=composer.with_refusals(c.body, refuse))
     return {
         "body": c.body,
         "sources": c.sources,
