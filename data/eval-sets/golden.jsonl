@@ -5,7 +5,7 @@
 {"id": "g05", "question": "ETF 분배금은 언제 받아?", "expected_intents": ["faq"], "expected_keywords": ["분배"], "expected_numbers": []}
 {"id": "g06", "question": "레버리지 ETF를 오래 들고 있으면 어떻게 돼?", "level": "intermediate", "expected_intents": ["faq"], "expected_keywords": ["레버리지"], "expected_numbers": []}
 {"id": "g07", "question": "샘플 반도체 최근 공시 알려줘", "expected_intents": ["disclosure"], "expected_keywords": ["샘플전자", "원문"], "expected_numbers": []}
-{"id": "g08", "question": "샘플 코스피200 지금 사야 할까?", "expected_intents": ["high_risk"], "expected_keywords": ["준법감시 승인 전 초안"], "expected_numbers": []}
+{"id": "g08", "question": "샘플 코스피200 지금 사야 할까?", "expected_intents": ["high_risk"], "expected_keywords": ["특정 시점을 안내하지 않습니다"], "expected_numbers": []}
 {"id": "g09", "question": "나한테 맞는 ETF 추천해줘", "expected_intents": ["recommendation"], "expected_keywords": ["맞춤 상품 추천은 아직 제공하지 않습니다"], "expected_numbers": []}
 {"id": "g10", "question": "총보수 0.1% 이하 해외 주식 ETF 찾아줘", "expected_intents": ["etf_info"], "expected_keywords": ["샘플 미국S&P500", "샘플 미국나스닥100"], "expected_numbers": ["0.0700%"]}
 {"id": "g11", "question": "ETF랑 ETN 차이가 뭐야?", "level": "beginner", "expected_intents": ["faq"], "expected_keywords": ["ETN"], "expected_numbers": []}
