@@ -179,7 +179,6 @@ class Settings(BaseSettings):
     # 넘으면 LLM 호출 없이 고정 안내 문구로 끝낸다. 카운트는 DB에 있어 재시작해도 유지된다.
     daily_question_limit: int = Field(default=0, ge=0)
 
-
     @field_validator("cors_origins", "fallback_allowed_intents", "admin_emails", mode="before")
     @classmethod
     def _split_commas(cls, value: object) -> object:
