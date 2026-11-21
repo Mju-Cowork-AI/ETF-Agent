@@ -14,7 +14,6 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import cache
-from app.repositories import disclosures as disclosure_repo
 from app.repositories import etf as etf_repo
 from app.settings import REPO_ROOT
 
@@ -79,11 +78,9 @@ def load_disclosures(samples_dir: Path) -> list[dict[str, Any]]:
 async def seed(session: AsyncSession, samples_dir: Path = SAMPLES_DIR) -> dict[str, int]:
     master = load_master(samples_dir)
     prices = load_prices(samples_dir)
-    disclosures = load_disclosures(samples_dir)
     result = {
         "etf_master": await etf_repo.upsert_etfs(session, master),
         "prices_daily": await etf_repo.upsert_prices(session, prices),
-        "disclosures": await disclosure_repo.upsert_disclosures(session, disclosures),
     }
     await session.commit()
     cache.clear_all()
