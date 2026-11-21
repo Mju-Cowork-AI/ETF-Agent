@@ -8,11 +8,11 @@ REPO="Mju-Cowork-AI/ETF-Agent"
 usage() {
   cat >&2 <<USAGE
 사용법: KV_NAME=<Key Vault 이름> scripts/set-secret.sh <SECRET_NAME>
-  예)  KV_NAME=kv-etfqa-1234 scripts/set-secret.sh DART_API_KEY
+  예)  KV_NAME=kv-etfqa-1234 scripts/set-secret.sh LLM_API_KEY
 
-  - SECRET_NAME: 대문자/숫자/언더스코어 (예: DART_API_KEY)
-  - Key Vault에는 언더스코어를 하이픈으로 바꿔 저장합니다 (DART-API-KEY)
-  - GitHub Secrets(${REPO})에는 그대로 저장합니다 (DART_API_KEY)
+  - SECRET_NAME: 대문자/숫자/언더스코어 (예: LLM_API_KEY)
+  - Key Vault에는 언더스코어를 하이픈으로 바꿔 저장합니다 (LLM-API-KEY)
+  - GitHub Secrets(${REPO})에는 그대로 저장합니다 (LLM_API_KEY)
   - 사전 조건: az login, gh auth login
 USAGE
 }

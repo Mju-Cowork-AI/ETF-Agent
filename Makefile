@@ -79,10 +79,6 @@ ingest: check-env ## 샘플 문서 청킹·임베딩 적재(P1-DA-03). 다른 �
 load-real: check-env ## 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개 upsert)
 	$(API_EXEC) python -m jobs.load_real $(ARGS)
 
-.PHONY: collect
-collect: check-env ## 공공데이터포털·DART 수집(키가 없으면 안내만 출력)
-	$(API_EXEC) python -m jobs.collector $(ARGS)
-
 # ---------- 품질 ----------
 .PHONY: test
 test: ## API 테스트(LLM_PROVIDER=fake, db 컨테이너 필요: make up)

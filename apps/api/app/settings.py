@@ -179,10 +179,6 @@ class Settings(BaseSettings):
     # 넘으면 LLM 호출 없이 고정 안내 문구로 끝낸다. 카운트는 DB에 있어 재시작해도 유지된다.
     daily_question_limit: int = Field(default=0, ge=0)
 
-    # --- 외부 데이터 API ---
-    data_go_kr_api_key: SecretStr | None = None
-    dart_api_key: SecretStr | None = None
-    external_timeout_seconds: float = Field(default=15.0, gt=0)
 
     @field_validator("cors_origins", "fallback_allowed_intents", "admin_emails", mode="before")
     @classmethod

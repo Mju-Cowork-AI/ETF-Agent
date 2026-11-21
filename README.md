@@ -80,9 +80,9 @@ make down                        # 컨테이너 종료, 볼륨 유지
 
 테스트는 `TEST_DATABASE_URL` 또는 `POSTGRES_*`로 지정한 서버에 별도의 `_test` DB를 만들며, **같은 이름의 기존 테스트 DB를 삭제하고 다시 생성합니다**. 실행 전에 대상 서버를 확인하세요.
 
-직접 스택을 관리할 때는 `make up`, `make migrate`, `make seed`, `make ingest`, `make collect`를 사용합니다. `make ingest ARGS="data/samples/docs --force"`는 문서를 강제로 재적재합니다. 경로는 레포 루트 기준 상대 경로(컨테이너 안에서는 `/workspace` 아래)로 주며, 없는 경로면 오류로 끝납니다. `make help`에서 전체 명령을 볼 수 있습니다.
+직접 스택을 관리할 때는 `make up`, `make migrate`, `make seed`, `make ingest`를 사용합니다. `make ingest ARGS="data/samples/docs --force"`는 문서를 강제로 재적재합니다. 경로는 레포 루트 기준 상대 경로(컨테이너 안에서는 `/workspace` 아래)로 주며, 없는 경로면 오류로 끝납니다. `make help`에서 전체 명령을 볼 수 있습니다.
 
-> **데이터를 갱신한 뒤에는 `make restart`로 API를 재시작하세요.** `make seed`, `make ingest`, `make collect`는 API와 다른 프로세스에서 실행되어 API의 메모리 캐시를 비우지 못합니다. 재시작하지 않으면 이전 FAQ 답변·시세는 최대 1시간, ETF 정보는 최대 1일 동안 그대로 나올 수 있습니다. 실행 스크립트(`run-fake.sh`, `run-local.sh`)로 처음 띄울 때와 운영 화면에서 문서를 업로드할 때는 필요 없습니다.
+> **데이터를 갱신한 뒤에는 `make restart`로 API를 재시작하세요.** `make seed`, `make ingest`는 API와 다른 프로세스에서 실행되어 API의 메모리 캐시를 비우지 못합니다. 재시작하지 않으면 이전 FAQ 답변·시세는 최대 1시간, ETF 정보는 최대 1일 동안 그대로 나올 수 있습니다. 실행 스크립트(`run-fake.sh`, `run-local.sh`)로 처음 띄울 때와 운영 화면에서 문서를 업로드할 때는 필요 없습니다.
 
 ### 설정
 
@@ -99,7 +99,6 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | `ANON_ACCESS_ENABLED`, `VITE_AUTH_MODE=anonymous` | 로그인 없는 접근(공개 URL). 브라우저마다 익명 사용자를 발급하고, 설명 수준은 채팅 화면 버튼으로 고름(기본 입문). 기본은 꺼짐 |
 | `ADMIN_AUTH=token`, `ADMIN_TOKEN` | 공개 URL의 운영 화면 보호. 팀원은 주소 끝에 `#admin`을 붙여 운영 토큰을 넣음 |
 | `METRICS_TOKEN` | `/metrics` 수집용 Bearer 토큰. 비우면 `APP_ENV=local`에서만 열림 |
-| `DATA_GO_KR_API_KEY`, `DART_API_KEY` | 외부 데이터 수집 키. `DATA_GO_KR_API_KEY`는 쓰지 않음(공공데이터 API 수집을 11-21 범위 조정 2차에서 뺌). 수집 코드 `jobs/collector`가 남아 있는 동안 항목만 둠 |
 
 ### API
 
@@ -129,7 +128,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 - **Docker Compose v2.24 이상**이 필요합니다(`docker compose version`으로 확인).
 - **포트 충돌:** 로컬 Postgres가 5432 포트를 쓰고 있으면 충돌합니다. `.env`의 `POSTGRES_PORT`를 다른 값으로 바꿉니다.
 - **`make test`:** DB가 떠 있어야 하고, `_test`로 끝나는 테스트 DB를 지우고 다시 만듭니다.
-- **데이터 갱신 뒤:** `make seed`, `make ingest`, `make collect` 다음에는 **`make restart`**를 실행합니다. 안 하면 캐시 때문에 이전 값이 나옵니다.
+- **데이터 갱신 뒤:** `make seed`, `make ingest` 다음에는 **`make restart`**를 실행합니다. 안 하면 캐시 때문에 이전 값이 나옵니다.
 - **Azure 연결:** `LLM_MODEL`에는 모델 이름이 아니라 **배포 이름**을 넣고, base URL은 **`/openai/v1/`로 끝나야** 합니다.
 
 ## 폴더 구조

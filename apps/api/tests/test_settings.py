@@ -127,13 +127,13 @@ def test_jwks_url_derived_from_supabase_url(clean_env: pytest.MonkeyPatch) -> No
 
 def test_secrets_are_masked(clean_env: pytest.MonkeyPatch) -> None:
     clean_env.setenv("DATABASE_URL", DB_URL)
-    clean_env.setenv("DART_API_KEY", "dummy-value")
+    clean_env.setenv("LLM_API_KEY", "dummy-value")
 
     s = load()
 
     assert "dummy-value" not in repr(s)
-    assert s.dart_api_key is not None
-    assert s.dart_api_key.get_secret_value() == "dummy-value"
+    assert s.llm_api_key is not None
+    assert s.llm_api_key.get_secret_value() == "dummy-value"
 
 
 def test_non_local_env_requires_jwt_secret(clean_env: pytest.MonkeyPatch) -> None:
