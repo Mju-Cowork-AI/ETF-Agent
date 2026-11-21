@@ -111,6 +111,26 @@ def test_numbers_from_question_are_allowed() -> None:
     assert ungrounded_numbers(answer, [TABLE], "총보수 0.1% 이하 해외 ETF 찾아줘") == []
 
 
+@pytest.mark.parametrize(
+    ("question", "answer"),
+    [
+        ("총보수 0.1%보다 낮은 ETF 있어?", "총보수가 0.1%보다 낮은 상품입니다."),
+        ("순자산 1,000억 원 이상인 ETF", "순자산 1,000억 원 이상인 상품입니다."),
+        ("총보수 0.05% 미만", "0.05% 미만인 상품은 없습니다."),
+    ],
+)
+def test_condition_numbers_in_question_are_allowed(question: str, answer: str) -> None:
+    assert ungrounded_numbers(answer, [TABLE], question) == []
+
+
+def test_claimed_numbers_in_question_are_not_evidence() -> None:
+    # 사용자가 주장한 틀린 수치를 모델이 따라 하면 걸려야 한다(리뷰 지적 예시)
+    question = "TIGER 미국나스닥100 총보수 0.5%라던데 맞아?"
+    assert ungrounded_numbers("총보수는 0.5%입니다.", [TABLE], question) == ["0.5%"]
+    # 근거 값으로 바로잡으면 통과
+    assert ungrounded_numbers("아니요, 총보수는 연 0.0450%입니다.", [TABLE], question) == []
+
+
 def test_dates_from_question_are_allowed() -> None:
     answer = "2024년 분배금 자료는 아직 없습니다."
     assert ungrounded_numbers(answer, [TABLE]) == ["2024년"]
@@ -122,6 +142,7 @@ def test_check_rules_passes_question() -> None:
     kwargs = {"included_disclaimers": [], "required_disclaimers": [], "evidence": [TABLE]}
     assert "ungrounded_number:0.1%" in check_rules(body, **kwargs)
     assert "ungrounded_number:0.1%" not in check_rules(body, question="0.1% 이하 ETF", **kwargs)
+    assert "ungrounded_number:0.1%" in check_rules(body, question="0.1%라던데?", **kwargs)
 
 
 # --- 검사하지 않는 숫자 ---

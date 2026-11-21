@@ -134,7 +134,9 @@ def find_ranking(text: str) -> list[str]:
 # 3. 답변 값이 근거 값을 마지막 표시 자릿수에서 반올림·버림한 값이고, 상대 오차가 rel_tolerance(5%) 이하면
 #    통과한다(근거 0.0099% → 답변 0.01% 통과, 근거 0.0062% → 답변 0.01% 불통과).
 # 4. 날짜(2026-11-11, 2026년 11월 11일, 2026년 11월, 11월 11일, 2026년)는 근거·질문의 날짜와 맞아야 통과한다.
-# 5. 질문에 나온 수치·날짜는 근거로 본다("총보수 0.1% 이하" 질문에 "0.1% 이하"로 답하는 경우).
+# 5. 질문에 나온 날짜와, 질문에서 조건 표현(이하·이상·미만·초과·까지·부터·보다 낮은 …)이 붙은 수치만 근거로 본다
+#    ("총보수 0.1% 이하" 질문에 "0.1% 이하"로 답하는 경우). "0.5%라던데 맞아?"처럼 사용자가 주장한 수치는
+#    근거가 아니다. 계획 JSON(11-23) 뒤에는 검색 조건(conditions) 값으로 바꾼다.
 
 _UNIT_MULT = {"조": 1e12, "억": 1e8, "만": 1e4}
 _NUM = r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?"
@@ -269,6 +271,41 @@ def _evidence_values(text: str) -> list[float]:
     return values
 
 
+# 질문 속 수치 바로 뒤에 오는 조건 표현(검색 조건으로 쓴 수치만 근거로 인정)
+_CONDITION_AFTER = re.compile(
+    r"^\s*(?:이하|이상|미만|초과|까지|부터|이내|넘는|넘게|넘지|안\s*넘|아래|밑|보다\s*(?:낮|높|작|크|적|많|싼|비싼))"
+)
+
+
+def _condition_values(question: str) -> list[float]:
+    """질문에서 조건 표현이 붙은 수치만 값으로("0.1% 이하"의 0.1). 주장·확인 요청 속 수치는 뺀다."""
+    text = _check_dates(_chars(question), _Dates(set(), set(), set(), set()))[0]
+    values: list[float] = []
+    for x, end in _extract_with_end(text):
+        if _CONDITION_AFTER.match(text[end:]):
+            values.append(x.value)
+    return values
+
+
+def _extract_with_end(text: str) -> list[tuple[_Num, int]]:
+    """_extract와 같되 각 수치가 끝나는 위치를 함께 돌려준다(단위가 없어도 포함)."""
+    out: list[tuple[_Num, int]] = []
+    for m in list(_COMPOUND.finditer(text)):
+        value = sum(
+            _to_float(m.group(n)) * _UNIT_MULT[m.group(u)]
+            for n, u in (("n1", "u1"), ("n2", "u2"), ("n3", "u3"))
+            if m.group(n)
+        )
+        out.append(
+            (_Num(raw=m.group(), value=-value if m.group("sign") else value, unit=1.0), m.end())
+        )
+        text = _blank(text, m.span())
+    for m in _PLAIN.finditer(text):
+        v = _to_float(m.group("n"))
+        out.append((_Num(raw=m.group(), value=-v if m.group("sign") else v, unit=1.0), m.end()))
+    return out
+
+
 def _same_value(x: _Num, f: float, rel_tolerance: float) -> bool:
     """답변 값 x가 근거 값 f를 반올림·버림한 표기이고 상대 오차가 rel_tolerance 이하인지."""
     for target in (f, -f):
@@ -303,7 +340,7 @@ def extract_numbers(text: str) -> list[str]:
 
 
 def ungrounded_numbers(answer: str, evidence: list[str], question: str = "") -> list[str]:
-    """답변 수치·날짜 중 근거(evidence)와 질문에 없는 것. 비어 있으면 통과.
+    """답변 수치·날짜 중 근거(evidence)·질문 날짜·질문의 조건 수치에 없는 것. 비어 있으면 통과.
 
     값으로 비교한다: 근거가 '0.0500%'·'36,180.00원'·'178,500,000,000원'이면 답변의 '0.05%'·'36,180원'·
     '1,785억 원'도 근거가 있다. 반올림·버림은 상대 오차 rel_tolerance(기본 5%) 안에서만 인정한다.
@@ -313,10 +350,13 @@ def ungrounded_numbers(answer: str, evidence: list[str], question: str = "") -> 
         return []
     allow = {a.replace(" ", "") for a in cfg.get("allow", [])}
     tol = float(cfg.get("rel_tolerance", 0.05))
-    ev_text = _chars(" ".join([*evidence, question]))
-    allowed_dates = _collect_dates(ev_text)
+    ev_text = _chars(" ".join(evidence))
+    # 날짜는 근거와 질문 모두에서 인정한다
+    allowed_dates = _collect_dates(_chars(f"{ev_text} {question}"))
     # 날짜 속 숫자(2026-11-11의 2026·11)가 수치 근거로 섞이지 않게 날짜를 지운 뒤 수치를 모은다
     allowed_values = _evidence_values(_check_dates(ev_text, allowed_dates)[0])
+    # 질문 수치는 조건 표현이 붙은 것만("0.1% 이하"). "0.5%라던데 맞아?"의 0.5%는 근거가 아니다
+    allowed_values += _condition_values(question)
 
     text, missing = _check_dates(_prepare(answer), allowed_dates)
     for x in _extract(text, require_unit_or_decimal=cfg.get("require_unit_or_decimal", True)):
