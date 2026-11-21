@@ -50,10 +50,10 @@ async def test_reingest_updates_document() -> None:
 
 
 def test_resolve_target_prefers_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """레포 기준 경로를 실행 위치와 무관하게 찾는다(make ingest ARGS="data/samples/docs")."""
+    """레포 기준 경로를 실행 위치와 무관하게 찾는다(make ingest ARGS="data/docs")."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "README.md").write_text("# cwd")
-    assert resolve_target("data/samples/docs") == REPO_ROOT / "data/samples/docs"
+    assert resolve_target("data/docs") == REPO_ROOT / "data/docs"
     assert resolve_target("README.md") == REPO_ROOT / "README.md"  # 실행 위치의 같은 이름보다 먼저
     (tmp_path / "only-here.md").write_text("# x")
     assert resolve_target("only-here.md") == Path("only-here.md")

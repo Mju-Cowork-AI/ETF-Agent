@@ -13,7 +13,7 @@ from jobs.ingest import collect_files, ingest_paths, resolve_target
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="문서 ingest (PDF·마크다운)")
-    parser.add_argument("paths", nargs="*", default=[str(REPO_ROOT / "data/samples/docs")])
+    parser.add_argument("paths", nargs="*", default=[str(REPO_ROOT / "data/docs")])
     parser.add_argument("--force", action="store_true", help="내용이 같아도 다시 임베딩")
     parser.add_argument("--doc-type", default="faq")
     args = parser.parse_args()
