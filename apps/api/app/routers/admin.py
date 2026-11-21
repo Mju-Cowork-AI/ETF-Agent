@@ -29,6 +29,11 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 _UPLOAD_LOCK = text("SELECT pg_advisory_xact_lock(hashtext(:key))")
 
 
+class StageTiming(BaseModel):
+    stage: str
+    ms: int
+
+
 class TraceOut(BaseModel):
     """마스킹된 정보만: 질의 원문은 테이블에 없다."""
 
@@ -42,6 +47,7 @@ class TraceOut(BaseModel):
     latency_ms: int | None
     model: str | None
     fallback_used: bool
+    stage_timings: list[StageTiming]
     created_at: datetime
 
 

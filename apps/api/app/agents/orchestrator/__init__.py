@@ -12,7 +12,7 @@ from app.logging import get_logger
 log = get_logger(__name__)
 
 # general·pii는 분류 대상이 아니다(pii는 전처리가 정한다)
-_VALID = {i.value for i in Intent if i not in (Intent.GENERAL, Intent.PII)}
+_VALID = {i.value for i in Intent if i not in (Intent.GENERAL, Intent.PII, Intent.DISCLOSURE)}
 _JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
