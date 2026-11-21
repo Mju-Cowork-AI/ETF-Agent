@@ -125,6 +125,7 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None = None
     llm_model: str = "gpt-5.4-nano"
     judge_model: str | None = None  # 비우면 llm_model과 같음
+    plan_model: str | None = None  # 계획(의도·도구 선택) 모델. 비우면 llm_model과 같음
     llm_timeout_seconds: float = Field(default=60.0, gt=0)
     llm_max_tokens: int = Field(default=1200, gt=0)  # FAQ 상세 설명 기준
     llm_temperature: float = Field(default=0.2, ge=0, le=2)
@@ -232,6 +233,10 @@ class Settings(BaseSettings):
     @property
     def judge_model_name(self) -> str:
         return self.judge_model or self.llm_model
+
+    @property
+    def plan_model_name(self) -> str:
+        return self.plan_model or self.llm_model
 
 
 @lru_cache

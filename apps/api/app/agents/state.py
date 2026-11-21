@@ -138,6 +138,9 @@ class GraphState(TypedDict, total=False):
     entities: list[EtfEntity]
     intents: list[str]
     intent_source: str  # llm | rules
+    plan: dict[str, Any]  # 계획 JSON 요약(interface.md). 질문 문장·검색어는 담지 않는다
+    plan_conditions: dict[str, Any]  # 계획의 검색 조건(etf_search)
+    refuse: list[str]  # 섞인 질문에서 답하지 않을 부분(high_risk·recommendation·out_of_scope)
     results: Annotated[dict[str, AgentResult], merge_results]
     agents_called: Annotated[list[str], operator.add]
     attempt: int

@@ -105,11 +105,29 @@ def compare_table(etfs: Sequence[EtfMaster], prices: dict[str, PriceDaily]) -> s
     return "\n".join([head, sep, *body])
 
 
-def list_table(etfs: Sequence[EtfMaster]) -> str:
-    lines = ["| 이름 | 종목코드 | 분류 | 기초지수 | 총보수 |", "| --- | --- | --- | --- | --- |"]
-    lines += [
-        f"| {_cell(e.name)} | {e.ticker} | {_cell(e.category or '-')} | "
-        f"{_cell(e.underlying_index or '-')} | {fmt.fee(e.total_expense_ratio)} |"
-        for e in etfs
-    ]
+def _with_date(value: str, as_of: date | None) -> str:
+    return f"{value} ({as_of.isoformat()})" if value != "-" and as_of else value
+
+
+def list_table(etfs: Sequence[EtfMaster], *, net_assets: bool = False) -> str:
+    """조건 검색 목록. 비용 비교는 총보수만으로 하지 않도록 실부담비용(기준일)을 함께 둔다(순위 규칙 R2).
+
+    net_assets=True(순자산 정렬)면 순자산(상품별 기준일) 열을 더한다(순자산 기준일이 상품마다 다름).
+    """
+    head = "| 이름 | 종목코드 | 분류 | 기초지수 | 총보수 | 실부담비용(기준일) |"
+    sep = "| --- | --- | --- | --- | --- | --- |"
+    if net_assets:
+        head += " 순자산(기준일) |"
+        sep += " --- |"
+    lines = [head, sep]
+    for e in etfs:
+        row = (
+            f"| {_cell(e.name)} | {e.ticker} | {_cell(e.category or '-')} | "
+            f"{_cell(e.underlying_index or '-')} | {fmt.fee(e.total_expense_ratio)} | "
+            f"{_with_date(fmt.fee(e.actual_expense_ratio), e.actual_expense_as_of)} |"
+        )
+        if net_assets:
+            eok = fmt.eok(e.net_assets) if e.net_assets else "-"
+            row += f" {_with_date(eok, e.net_assets_as_of)} |"
+        lines.append(row)
     return "\n".join(lines)

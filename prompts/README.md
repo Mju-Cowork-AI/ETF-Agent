@@ -4,7 +4,7 @@
 
 | 경로 | 쓰는 곳 | 설명 |
 | --- | --- | --- |
-| `system/classifier.md` | 오케스트레이터(P1-AG-02) | 의도 분류 JSON 지시 |
+| `system/classifier.md` | 오케스트레이터(P1-AG-02) | 계획 JSON 지시(의도·도구·답하지 않을 부분 `refuse`·확신도, docs/interface.md). 모델은 `PLAN_MODEL` |
 | `system/answer_{beginner,intermediate,expert}.md` | 답변 합성(P1-AG-06) | 설명 수준별 역할·구성·분량·형식 예시 |
 | `system/answer_rules.md` | 답변 합성 | 입력 자료([ETF 데이터]·[공시]·[근거 N]) 설명, 작성 순서, 공통 규칙. 수준별 파일 뒤에 붙는다 |
 | `system/general.md` | 일반 대화(로컬 전용) | 근거 없는 자유 답변 |
@@ -13,6 +13,7 @@
 | `guard/judge.md` | 가드 ② | 검증 모델 JSON 판정 지시 |
 | `templates/high_risk/*.md` | 가드 ③ | 고위험 의도 고정 답변(준법감시 승인 전 초안) |
 | `templates/*.md` | 그래프·채팅 서비스 | 추천(거절·비교 기준 안내)·범위 밖·차단·안전 답변 |
+| `templates/refusals.yaml` | 답변 합성 | 섞인 질문에서 답하지 않은 부분(`refuse`)에 붙이는 거절 문장 |
 | `templates/pii_blocked.md` | 그래프 전처리(P1-AG-06) | 개인정보가 든 질문 안내. 분류 LLM·임베딩 호출 전에 답한다 |
 
 템플릿의 `{inquiry_channel}`은 설정값 `INQUIRY_CHANNEL`로 바뀐다.

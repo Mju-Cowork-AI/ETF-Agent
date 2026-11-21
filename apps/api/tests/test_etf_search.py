@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from app.agents.state import AgentDeps
+from app.tools import compare
 from app.tools.etf_search import EtfFilters, parse_filters, search
 
 
@@ -105,3 +106,70 @@ async def test_region_still_separates_categories_that_have_one(deps: AgentDeps) 
     async with deps.maker() as s:
         rows = await search(s, parse_filters("해외 채권 ETF 목록", []))
     assert [e.ticker for e in rows] == ["900100"]  # 국내 채권(900090)은 빠진다
+
+
+# ---------- 정렬(리허설 gen16: '해외 ETF 실부담비용 순서대로') ----------
+@pytest.mark.parametrize(
+    ("text", "sort", "desc", "label"),
+    [
+        (
+            "해외 ETF 실부담비용 순서대로 알려줘",
+            "actual_expense_ratio",
+            False,
+            "실부담비용 낮은 순",
+        ),
+        ("실부담비용이 가장 낮은 ETF", "actual_expense_ratio", False, "실부담비용 낮은 순"),
+        ("총보수 높은 순으로 보여줘", "total_expense_ratio", True, "총보수 높은 순"),
+        ("순자산 순으로 보여줘", "net_assets", True, "순자산 큰 순"),
+        ("규모가 제일 작은 ETF", "net_assets", False, "순자산 작은 순"),
+    ],
+)
+def test_sort_is_parsed(text: str, sort: str, desc: bool, label: str) -> None:
+    f = parse_filters(text, [])
+    assert (f.sort, f.sort_desc) == (sort, desc)
+    assert f.sort_label() == label
+    assert not f.is_empty()  # 정렬만 있어도 조건 검색이다
+
+
+@pytest.mark.parametrize("text", ["실부담비용 알려줘", "KODEX 200 총보수", "순자산이 뭐야?"])
+def test_metric_without_order_is_not_sort(text: str) -> None:
+    assert parse_filters(text, []).sort is None
+
+
+async def test_search_sorts_by_actual_expense(deps: AgentDeps) -> None:
+    from datetime import date
+
+    from sqlalchemy import select
+
+    from app.repositories.models import EtfMaster
+
+    values = {"900030": "0.1430", "900040": "0.1092", "900080": "0.1571", "900100": "0.1308"}
+    async with deps.maker() as s:
+        rows = (await s.scalars(select(EtfMaster).where(EtfMaster.ticker.in_(values)))).all()
+        for e in rows:
+            e.actual_expense_ratio = Decimal(values[e.ticker])
+            e.actual_expense_as_of = date(2026, 10, 30)
+        await s.flush()  # 같은 세션에서만 보이고 테스트 끝에 되돌린다
+        got = await search(s, parse_filters("해외 ETF 실부담비용 순서대로", []))
+        table = compare.list_table(got)
+        ordered = [e.ticker for e in got if e.ticker in values]
+        await s.rollback()
+    assert ordered == ["900040", "900100", "900030", "900080"]  # 낮은 순, 값 없는 상품은 뒤
+    assert "실부담비용(기준일)" in table and "0.1092% (2026-10-30)" in table
+
+
+def test_list_table_shows_net_assets_with_date_when_sorted_by_it() -> None:
+    from datetime import date
+
+    from app.repositories.models import EtfMaster
+
+    e = EtfMaster(
+        ticker="133690",
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        net_assets=11695422000000,
+        net_assets_as_of=date(2026, 10, 30),
+    )
+    assert "순자산" not in compare.list_table([e])
+    table = compare.list_table([e], net_assets=True)
+    assert "순자산(기준일)" in table and "(2026-10-30)" in table
