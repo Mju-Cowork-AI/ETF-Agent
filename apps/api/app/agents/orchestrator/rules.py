@@ -43,7 +43,6 @@ RECOMMEND = _P(
     r"(어떤|어느)\s*(etf|이티에프|상품|거).{0,10}(좋|사|살|괜찮|나아)",
     r"포트폴리오\s*(짜|구성|만들)",
 )
-DISCLOSURE = _P(r"공시", r"뉴스", r"소식", r"발표", r"이슈", r"리포트")
 ETF_INFO = _P(
     r"괴리율",
     r"시세",
@@ -57,11 +56,15 @@ ETF_INFO = _P(
     r"운용사",
     r"상장일",
     r"추이",
+    r"분배",
 )
 SEARCH = _P(
     r"찾아\s*(줘|주세요)|검색|목록|리스트|어떤\s*것들|종류.{0,6}(있|알려)|이하|미만|이상",
     r"etf\s*들",
 )
+# D5: disclosure 의도·에이전트는 없지만, 공시 키워드 패턴은 남겨서
+# 공시만 묻는 질문을 out_of_scope로 보낸다.
+DISCLOSURE = _P(r"공시|뉴스|소식|리포트")
 FAQ_DEF = _P(
     r"(이란|란\s*(뭐|무엇)|뭐야|뭔가요|뭐예요|뭐에요|무엇|뜻|개념|정의|의미|원리|차이|설명해)",
     r"어떻게\s*(돼|되|작동|계산|받|사|거래)",
@@ -97,15 +100,19 @@ def classify_rules(text: str, *, has_entity: bool) -> list[str]:
 
     intents: list[str] = []
     info_kw, faq_kw = _any(ETF_INFO, text), _any(FAQ_DEF, text)
+    disc_kw = _any(DISCLOSURE, text)
+
+    # D5: 공시 키워드만 있고 ETF 정보·개념 키워드가 없으면 범위 밖
+    if disc_kw and not info_kw and not faq_kw:
+        return [Intent.OUT_OF_SCOPE]
+
     if has_entity:
-        if info_kw or not (faq_kw or _any(DISCLOSURE, text)):
+        if info_kw or not faq_kw:
             intents.append(Intent.ETF_INFO)
         if faq_kw and not info_kw:
             intents.append(Intent.FAQ)
     elif _any(SEARCH, text) and (info_kw or _any(DOMAIN, text)):
         intents.append(Intent.ETF_INFO)
-    if _any(DISCLOSURE, text):
-        intents.append(Intent.DISCLOSURE)
     if not intents and (faq_kw or info_kw or _any(DOMAIN, text)):
         intents.append(Intent.FAQ)
     return intents or [Intent.OUT_OF_SCOPE]
