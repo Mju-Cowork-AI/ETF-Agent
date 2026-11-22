@@ -1,0 +1,143 @@
+name: deploy
+
+# main에 올라가면(dev → main 릴리스) API와 웹을 배포한다. infra/azure/README.md "자동 배포" 참고
+# 설정 작업(마이그레이션·시드·실데이터·문서 적재)은 자동으로 돌지 않는다. 수동 실행에서 고를 때만 돈다.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_setup_job:
+        description: "설정 작업도 실행(스키마·데이터·문서가 바뀌었을 때만)"
+        type: boolean
+        default: false
+      deploy_web:
+        description: "웹도 배포"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write # Azure에 키 없이 로그인(OIDC)
+
+# 배포는 한 번에 하나만. 진행 중인 배포를 끊지 않는다.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: rg-etf-agent
+  REGISTRY: acretfagentb084
+  API_APP: ca-etf-agent-api
+  SETUP_JOB: caj-etf-agent-setup
+  API_URL: https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io
+  PAGES_PROJECT: etf-agent
+
+jobs:
+  api:
+    name: api
+    runs-on: ubuntu-latest
+    # Azure 로그인은 main에서만 허용된다(연동 자격 증명의 대상이 refs/heads/main)
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: 이미지 빌드·푸시
+        run: |
+          TAG=$(git rev-parse --short HEAD)
+          IMG=$REGISTRY.azurecr.io/etf-agent-api:$TAG
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          az acr login -n "$REGISTRY"
+          docker build -f apps/api/Dockerfile -t "$IMG" .
+          docker push "$IMG"
+
+      - name: containerapp 확장 설치
+        run: az extension add -n containerapp --upgrade --only-show-errors
+
+      - name: 설정 작업 실행(수동 실행에서 골랐을 때만)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_setup_job
+        run: |
+          az containerapp job update -g "$RESOURCE_GROUP" -n "$SETUP_JOB" --image "$IMG" --only-show-errors -o none
+          EXEC=$(az containerapp job start -g "$RESOURCE_GROUP" -n "$SETUP_JOB" --query name -o tsv --only-show-errors)
+          echo "실행: $EXEC"
+          for _ in $(seq 1 60); do
+            STATUS=$(az containerapp job execution show -g "$RESOURCE_GROUP" -n "$SETUP_JOB" \
+              --job-execution-name "$EXEC" --query properties.status -o tsv --only-show-errors)
+            echo "상태: $STATUS"
+            case "$STATUS" in
+              Succeeded) exit 0 ;;
+              Failed | Stopped | Degraded) echo "::error::설정 작업 실패($STATUS). API는 바꾸지 않았다"; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::설정 작업이 15분 안에 끝나지 않았다"
+          exit 1
+
+      - name: API를 새 이미지로
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$API_APP" --image "$IMG" --only-show-errors \
+            --query "{image:properties.template.containers[0].image,revision:properties.latestRevisionName}" -o json
+
+      - name: 새 리비전이 뜨고 /health가 ok인지 확인
+        run: |
+          REV=$(az containerapp show -g "$RESOURCE_GROUP" -n "$API_APP" --query properties.latestRevisionName -o tsv --only-show-errors)
+          for _ in $(seq 1 40); do
+            STATE=$(az containerapp revision show -g "$RESOURCE_GROUP" -n "$API_APP" --revision "$REV" \
+              --query properties.runningState -o tsv --only-show-errors)
+            echo "$REV: $STATE"
+            case "$STATE" in
+              Running*) break ;;
+              Failed | Degraded | Stopped) echo "::error::새 리비전이 뜨지 않았다($STATE)"; exit 1 ;;
+            esac
+            sleep 15
+          done
+          case "$STATE" in Running*) ;; *) echo "::error::새 리비전이 10분 안에 뜨지 않았다"; exit 1 ;; esac
+          BODY=$(curl -fsS -m 20 --retry 5 --retry-delay 5 --retry-all-errors "$API_URL/health")
+          echo "$BODY"
+          echo "$BODY" | grep -q '"status":"ok"' && echo "$BODY" | grep -q '"db":"ok"'
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    needs: api
+    if: github.event_name == 'push' || inputs.deploy_web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: 빌드(VITE_* 값은 빌드할 때 고정된다)
+        working-directory: apps/web
+        env:
+          VITE_API_BASE_URL: ${{ env.API_URL }}
+          VITE_AUTH_MODE: anonymous
+        run: |
+          npm ci
+          npm run build
+
+      - name: dist에 배포할 파일만 있는지 확인
+        working-directory: apps/web
+        run: |
+          ls -A dist
+          EXTRA=$(ls -A dist | grep -vxE '_redirects|assets|favicon\.svg|index\.html' || true)
+          if [ -n "$EXTRA" ]; then
+            echo "::error::dist에 예상하지 않은 파일이 있다: $EXTRA"
+            exit 1
+          fi
+
+      - name: Cloudflare Pages 배포
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.166.0 pages deploy dist --project-name "$PAGES_PROJECT" --branch main
