@@ -46,6 +46,7 @@ class Composed:
     cache_key: str | None = None
     failed: bool = False  # 답할 수 없음(LLM 실패 등) → 안전 답변
     agents: list[str] = field(default_factory=list)
+    data_disclaimers: list[str] = field(default_factory=list)  # 데이터 때문에 더 붙는 고지 id
 
 
 # ---------- 고지 ----------
@@ -219,4 +220,5 @@ async def synthesize(state: GraphState, deps: AgentDeps) -> Composed:
         evidence=[e for r in found for e in r.evidence] + notices + prior_answer_evidence(state),
         generated=bool(prose),
         cache_key=faq_result.cache_key if single_faq and faq_result is not None and prose else None,
+        data_disclaimers=list(dict.fromkeys(d for r in found for d in r.disclaimers)),
     )

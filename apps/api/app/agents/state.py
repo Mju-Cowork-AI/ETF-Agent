@@ -95,6 +95,8 @@ class AgentResult:
     ok: bool = True
     error: str | None = None
     cache_key: str | None = None  # 가드 통과 시 캐시에 저장할 키(FAQ)
+    # 의도와 별개로 이 결과의 데이터 때문에 붙여야 하는 고지 id(예: 샘플 상품 → sample_data)
+    disclaimers: list[str] = field(default_factory=list)
     cached: bool = False
     found: bool = True  # 답에 쓸 자료를 찾았는지(False면 content는 안내 문구)
     context: str = ""  # LLM 프롬프트에 넣을 자료 블록([ETF 데이터]·[공시]·[근거 N])

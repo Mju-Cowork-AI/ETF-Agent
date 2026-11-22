@@ -3,12 +3,24 @@
 LLM을 부르지 않는다. DB 표는 화면에 그대로 붙고, 설명 문장은 답변 합성(compose)이 한 번에 쓴다.
 """
 
+import re
+
 from app.agents.preprocess import load_catalog
 from app.agents.state import AgentDeps, AgentResult, GraphState, Source
 from app.tools import compare, etf_search, price_lookup
 
 NAME = "etf_info"
 SEARCH_LIMIT = 10
+NO_PRICE_NOTE = (
+    "이 서비스는 시세(종가·NAV·괴리율·거래량)를 제공하지 않습니다. "
+    "현재 시세는 운용사 홈페이지나 한국거래소에서 확인해 주세요."
+)
+_PRICE_WORDS = re.compile(r"시세|종가|현재가|시가|주가|가격|얼마에\s*거래|nav|괴리율|거래량", re.I)
+
+
+def asks_price(text: str) -> bool:
+    """질문이 시세(종가·NAV·괴리율·거래량 등)를 묻는지."""
+    return bool(_PRICE_WORDS.search(text))
 
 
 async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
@@ -27,6 +39,9 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             else:
                 table = compare.detail_table(etfs[0], prices.get(etfs[0].ticker))
                 title = f"{etfs[0].name} 정보"
+            # 시세를 물었는데 DB에 시세가 없으면(실데이터는 시세 미수집, 범위 조정 2차) 안내한다
+            if asks_price(state["normalized"]) and not any(e.ticker in prices for e in etfs):
+                notes.append(NO_PRICE_NOTE)
         else:
             catalog = await load_catalog(deps.maker)
             indexes = sorted({c.underlying_index for c in catalog if c.underlying_index})
@@ -72,7 +87,7 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             dates = []
 
     # 샘플 데이터인지 판별: 모든 ETF가 source='sample'이면 샘플
-    is_sample = all(e.source == "sample" for e in etfs)
+    is_sample = bool(etfs) and all(e.source == "sample" for e in etfs)
 
     # 기준일 문구: 시세 기준일과 마스터 기준일(실부담비용·순자산)을 모두 모은다
     master_dates = compare.master_as_of_dates(etfs) if tickers else []
@@ -113,4 +128,6 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
         sources=[source],
         evidence=[data],
         retrieved_ids=[f"etf:{e.ticker}" for e in etfs],
+        # 샘플 상품이 하나라도 있으면 '개발용 샘플 데이터' 고지를 붙인다(실데이터만이면 안 붙음)
+        disclaimers=["sample_data"] if any(e.source == "sample" for e in etfs) else [],
     )

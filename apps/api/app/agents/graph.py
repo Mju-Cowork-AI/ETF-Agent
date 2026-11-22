@@ -274,8 +274,9 @@ async def compose_node(state: GraphState, config: RunnableConfig) -> dict[str, A
         "grounded": c.grounded,
         "cached": c.cached,
         "cache_key": c.cache_key,
-        "disclaimer_ids": ids,
-        "answer": "" if c.failed else composer.full_answer(c.body, ids),
+        # 의도별 필수 고지 + 데이터 때문에 붙는 고지(샘플 상품이면 sample_data)
+        "disclaimer_ids": ids + c.data_disclaimers,
+        "answer": "" if c.failed else composer.full_answer(c.body, ids + c.data_disclaimers),
         "verdict": Verdict.LLM_UNAVAILABLE if c.failed else "",
         "agents_called": c.agents,
     }
@@ -288,7 +289,8 @@ async def guard_node(state: GraphState, config: RunnableConfig) -> dict[str, Any
         return {"guard_history": [["llm_unavailable"]]}
     await deps.emit("guard", "답변을 점검하는 중")
     # 필수 고지는 '붙이기로 한 id'가 아니라 완성된 답변에 실제로 들어간 문구로 검사한다.
-    required = composer.required_disclaimers(state["intents"])
+    # 붙이기로 한 고지(의도별 + 샘플 상품 등 데이터별)가 기준이다.
+    required = state.get("disclaimer_ids") or composer.required_disclaimers(state["intents"])
     included = composer.included_disclaimers(state.get("answer") or "")
     if state.get("cached"):
         # 캐시 답변은 본문 검증을 이미 통과했다. 고지는 지금 설정으로 다시 붙였으므로 다시 본다.

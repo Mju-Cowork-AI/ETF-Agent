@@ -6,13 +6,14 @@ disclaimers:
   principal_loss:
     text: "ETF는 예금자보호 대상이 아니며 원금 손실이 발생할 수 있습니다."
   data_as_of:
-    text: "시세·괴리율 등 수치는 표시된 기준일의 일별 데이터이며 실시간 시세와 다를 수 있습니다."
+    text: "총보수·실부담비용·순자산 등 수치는 표에 적힌 기준일의 값이며, 이후 바뀌었을 수 있습니다."
   sample_data:
+    # 의도가 아니라 데이터로 붙는다: 답변에 쓴 ETF가 샘플 상품(source='sample')일 때만 ETF 정보가 요청한다
     text: "현재 서비스의 상품·시세는 개발용 샘플 데이터입니다."
 
 # 의도 → 필요한 고지 id 목록
 required:
-  etf_info: [general, principal_loss, data_as_of, sample_data]
+  etf_info: [general, principal_loss, data_as_of]  # 샘플 상품이면 sample_data가 더해진다
   faq: [general]
   disclosure: []
   high_risk: []        # 필요한 고지는 템플릿 본문에 직접 쓴다
