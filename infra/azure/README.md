@@ -25,7 +25,7 @@ API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 �
 | Container Apps 환경 | `cae-etf-agent` | koreacentral | |
 | 관리 ID | `id-etf-agent-api` | koreacentral | 레지스트리 `AcrPull`, Key Vault `Key Vault Secrets User` |
 | API 앱 | `ca-etf-agent-api` | koreacentral | 0.5 vCPU / 1Gi, 복제본 1개 고정(최소 1, 최대 1) |
-| 설정 작업 | `caj-etf-agent-setup` | koreacentral | 수동 실행: 마이그레이션 → 샘플 시드 → 실데이터 적재(`jobs.load_real`, 샘플 ETF·시세·공시 삭제 후 ETF 5개) → 샘플 문서 적재 |
+| 설정 작업 | `caj-etf-agent-setup` | koreacentral | 수동 실행: 마이그레이션 → 샘플 시드 → 실데이터 적재(`jobs.load_real`, 샘플 ETF·시세·공시 삭제 후 ETF 5개) → 문서 적재(`--delete-prefix`로 샘플 문서 삭제 후 `data/docs` 적재) |
 | 웹 | Cloudflare Pages `etf-agent` | — | <https://etf-agent.pages.dev>. Cloud Engineer의 Cloudflare 계정 |
 
 - 복제본을 1개로 고정한 이유: 캐시가 프로세스 메모리에 있어 인스턴스가 여러 개면 캐시 삭제가 전파되지 않는다.

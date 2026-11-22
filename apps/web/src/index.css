@@ -218,14 +218,6 @@ a {
 .spacer {
   flex: 1;
 }
-.sample-tag {
-  font-size: 0.72rem;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--warn-bg);
-  border: 1px solid var(--warn-line);
-}
-
 /* ---------- 채팅 ---------- */
 .chat-layout {
   flex: 1;
