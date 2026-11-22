@@ -5,7 +5,8 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from app.agents.orchestrator.rules import classify_rules, is_blocked, is_high_risk
+from app.agents.etf_info import asks_price
+from app.agents.orchestrator.rules import DISCLOSURE, classify_rules, is_blocked, is_high_risk
 from app.agents.prompts import load_text
 from app.agents.state import AGENT_INTENTS, Intent
 from app.llm.base import ChatMessage, LLMClient, LLMError
@@ -259,7 +260,25 @@ async def plan(
         if is_high_risk(text):
             intents = [Intent.HIGH_RISK]
         return Plan(intents=finalize_intents([str(i) for i in intents]), source="rules")
-    return finalize_plan(parsed, text)
+    return _price_is_etf_info(finalize_plan(parsed, text), text, has_entity=has_entity)
+
+
+def _price_is_etf_info(p: Plan, text: str, *, has_entity: bool) -> Plan:
+    """특정 ETF의 시세 질문을 계획이 범위 밖으로 보내면 ETF 정보로 되돌린다.
+
+    시세는 수집하지 않지만(범위 조정 2차) 질문 자체는 ETF 정보 질문이고, ETF 정보가
+    '시세를 제공하지 않습니다' 안내를 붙인다(#35, grading.md 4-2). 공시·뉴스 낱말이 있으면 손대지 않는다.
+    """
+    if not has_entity or not asks_price(text) or any(r.search(text) for r in DISCLOSURE):
+        return p
+    oos = Intent.OUT_OF_SCOPE.value
+    if oos not in p.intents and oos not in p.refuse:
+        return p
+    intents = [i for i in p.intents if i != oos] or [Intent.ETF_INFO.value]
+    if intents != [Intent.ETF_INFO.value] and Intent.ETF_INFO.value not in intents:
+        intents = [Intent.ETF_INFO.value, *intents]
+    log.info("plan_price_override", intents=p.intents, refuse=p.refuse)
+    return replace(p, intents=intents, refuse=[r for r in p.refuse if r != oos])
 
 
 async def classify(

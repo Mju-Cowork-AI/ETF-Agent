@@ -4,13 +4,14 @@ import json
 
 import pytest
 
+from app.agents import etf_info
 from app.agents.compose import refusal_texts, with_refusals
 from app.agents.graph import run_graph
 from app.agents.guard import rules
 from app.agents.orchestrator import Plan, finalize_plan, parse_plan, plan
 from app.agents.state import AgentDeps
 from app.llm.fake import FakeLLM
-from app.tools import etf_search
+from app.tools import etf_search, price_lookup
 
 
 def _plan_json(**kw) -> str:
@@ -215,3 +216,37 @@ async def test_graph_judgment_only_keeps_template(
     st = await run_graph(deps, request_id="t", query=q)
     assert st["intents"] == ["high_risk"] and st["verdict"] == "template"
     assert st.get("refuse") == []
+
+
+# ---------- 시세 질문은 범위 밖이 아니라 ETF 정보(11-22 배포 확인) ----------
+@pytest.mark.parametrize(
+    "q", ["샘플 코스피200 지금 얼마에 거래돼?", "샘플 코스피200 현재가 알려줘"]
+)
+async def test_price_question_planned_out_of_scope_becomes_etf_info(
+    deps: AgentDeps, fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch, q: str
+) -> None:
+    async def no_prices(session, tickers):
+        return {}
+
+    monkeypatch.setattr(price_lookup, "latest", no_prices)
+    fake_llm.push("classify", _plan_json(intents=["out_of_scope"]))
+    st = await run_graph(deps, request_id="t", query=q)
+    assert st["intents"] == ["etf_info"]
+    assert st["refuse"] == []
+    assert etf_info.NO_PRICE_NOTE in st["answer"]
+    assert "ETF 정보와 ETF 관련 지식만" not in st["answer"]
+
+
+async def test_price_part_in_refuse_is_dropped() -> None:
+    llm = FakeLLM(script={"classify": [_plan_json(intents=["etf_info"], refuse=["out_of_scope"])]})
+    p = await plan(llm, "샘플 코스피200 현재가 알려줘", has_entity=True)
+    assert (p.intents, p.refuse) == (["etf_info"], [])
+
+
+async def test_price_override_keeps_news_and_no_entity_cases() -> None:
+    news = FakeLLM(script={"classify": [_plan_json(intents=["out_of_scope"])]})
+    p = await plan(news, "샘플 코스피200 가격 관련 뉴스 알려줘", has_entity=True)
+    assert p.intents == ["out_of_scope"]
+    other = FakeLLM(script={"classify": [_plan_json(intents=["out_of_scope"])]})
+    p = await plan(other, "비트코인 현재가 알려줘", has_entity=False)
+    assert p.intents == ["out_of_scope"]
