@@ -14,14 +14,16 @@ from app.llm.fake import FakeLLM
         ("총보수 0.1% 이하 해외 주식 ETF 찾아줘", False, ["etf_info"]),
         ("괴리율이 뭐야?", False, ["faq"]),
         ("ETF 분배금은 언제 받아?", False, ["faq"]),
-        ("샘플 반도체 최근 공시 알려줘", True, ["disclosure"]),
+        ("샘플 반도체 최근 공시 알려줘", True, ["out_of_scope"]),
         ("샘플 코스피200 지금 사야 할까?", True, ["high_risk"]),
         ("샘플 나스닥 내년에 오를까?", True, ["high_risk"]),
         ("제 세금 얼마 나와요?", False, ["high_risk"]),
         ("손실 보상해 주나요?", False, ["high_risk"]),
         ("ETF 추천해줘", False, ["recommendation"]),
         ("오늘 날씨 어때?", False, ["out_of_scope"]),
-        ("샘플 반도체랑 샘플 2차전지 비교하고 뉴스도 알려줘", True, ["etf_info", "disclosure"]),
+        ("샘플 반도체랑 샘플 2차전지 비교하고 뉴스도 알려줘", True, ["etf_info"]),
+        ("KODEX 200 분배금 발표 언제야?", True, ["etf_info"]),
+        ("상장폐지 이슈 있는 ETF 있어?", False, ["faq"]),
     ],
 )
 def test_keyword_rules(text: str, has_entity: bool, expected: list[str]) -> None:
@@ -30,19 +32,19 @@ def test_keyword_rules(text: str, has_entity: bool, expected: list[str]) -> None
 
 def test_parse_intents() -> None:
     assert parse_intents('{"intents": ["faq"]}') == ["faq"]
-    assert parse_intents('답: {"intents": ["etf_info", "disclosure", "x"]} 끝') == [
+    assert parse_intents('답: {"intents": ["etf_info", "faq", "x"]} 끝') == [
         "etf_info",
-        "disclosure",
+        "faq",
     ]
     assert parse_intents("분류 불가") is None
     assert parse_intents('{"intents": []}') is None
 
 
 async def test_uses_llm_json_when_valid() -> None:
-    llm = FakeLLM(script={"classify": ['{"intents": ["disclosure", "etf_info"]}']})
-    intents, source = await classify(llm, "그 ETF 소식이랑 시세", has_entity=True)
+    llm = FakeLLM(script={"classify": ['{"intents": ["faq", "etf_info"]}']})
+    intents, source = await classify(llm, "그 ETF 괴리율이 뭐고 시세는", has_entity=True)
     assert source == "llm"
-    assert intents == ["etf_info", "disclosure"]  # 에이전트 순서로 정렬
+    assert intents == ["etf_info", "faq"]  # 에이전트 순서로 정렬
 
 
 async def test_falls_back_to_rules_on_bad_json() -> None:

@@ -151,11 +151,11 @@ async def test_faq_says_unknown_without_evidence(deps: AgentDeps) -> None:
     assert "제공된 자료로는 답하기 어렵습니다" in st["answer"]
 
 
-async def test_disclosure_summary_with_links(deps: AgentDeps) -> None:
+async def test_disclosure_goes_to_out_of_scope(deps: AgentDeps) -> None:
+    """D5: 공시 질문은 범위 밖 고정 문구로 답한다."""
     st = await ask(deps, "샘플 반도체 최근 공시 알려줘")
-    assert st["intents"] == ["disclosure"]
-    assert "https://example.com/disclosures/sample-0005" in st["answer"]
-    assert all(s.url for s in st["sources"])
+    assert st["intents"] == ["out_of_scope"]
+    assert st["verdict"] == "template"
 
 
 @pytest.mark.parametrize(
@@ -195,12 +195,11 @@ async def test_out_of_scope(deps: AgentDeps) -> None:
     assert st["verdict"] == "template"
 
 
-async def test_multi_intent_runs_agents_in_parallel_and_merges(deps: AgentDeps) -> None:
+async def test_multi_intent_compare_with_news_keyword(deps: AgentDeps) -> None:
+    """D5: '뉴스' 키워드가 있어도 disclosure가 제외되어 etf_info만 남는다."""
     st = await ask(deps, "샘플 반도체랑 샘플 2차전지 비교하고 뉴스도 알려줘")
-    assert st["intents"] == ["etf_info", "disclosure"]
-    assert sorted(st["agents_called"]) == ["disclosure", "etf_info"]
-    assert "### ETF 정보" in st["answer"] and "### 공시" in st["answer"]
-    assert "공시 요약은 참고용" in st["answer"]  # 두 의도의 고지를 합친다
+    assert st["intents"] == ["etf_info"]
+    assert "etf_info" in st["agents_called"]
 
 
 async def test_multiturn_carries_previous_etf(deps: AgentDeps) -> None:
