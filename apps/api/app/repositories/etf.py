@@ -96,6 +96,14 @@ def _filter_terms(
     return terms
 
 
+# 조건 검색 정렬 기준(이름 → 열)
+SORT_COLUMNS = {
+    "total_expense_ratio": EtfMaster.total_expense_ratio,
+    "actual_expense_ratio": EtfMaster.actual_expense_ratio,
+    "net_assets": EtfMaster.net_assets,
+}
+
+
 async def search_etfs(
     session: AsyncSession,
     *,
@@ -108,9 +116,13 @@ async def search_etfs(
     min_fee: Decimal | None = None,
     max_fee_exclusive: bool = False,
     min_fee_exclusive: bool = False,
+    sort: str = "total_expense_ratio",
+    descending: bool = False,
     limit: int = 10,
 ) -> list[EtfMaster]:
     """ETF 검색·필터(분류, 기초지수, 보수 범위). 키워드는 이름·별칭 trgm 유사도로 정렬.
+
+    키워드가 없으면 sort(SORT_COLUMNS의 키) 기준으로 정렬한다. 값이 없는 상품은 맨 뒤.
 
     category_prefix는 분류 앞부분(국내·해외), *_exclusive는 경계값 제외(미만·초과).
     unprefixed_ok를 주면, 그 접두어들 중 어느 것으로도 시작하지 않는 분류(지역 표기가 없는
@@ -133,7 +145,10 @@ async def search_etfs(
         )
         stmt = stmt.where(sim > 0.1).order_by(sim.desc())
     else:
-        stmt = stmt.order_by(EtfMaster.total_expense_ratio.asc().nulls_last(), EtfMaster.ticker)
+        col = SORT_COLUMNS.get(sort, EtfMaster.total_expense_ratio)
+        stmt = stmt.order_by(
+            (col.desc() if descending else col.asc()).nulls_last(), EtfMaster.ticker
+        )
     return list((await session.scalars(stmt.limit(limit))).all())
 
 

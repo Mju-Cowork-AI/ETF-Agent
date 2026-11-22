@@ -45,6 +45,7 @@ properties:
           - {name: LLM_API_KEY, secretRef: llm-api-key}
           - {name: LLM_MODEL, value: gpt-6-sol}
           - {name: JUDGE_MODEL, value: gpt-6-luna}
+          - {name: PLAN_MODEL, value: gpt-6-luna}
           - {name: EMBEDDING_MODEL, value: text-embedding-3-small}
           - {name: EMBEDDING_DIM, value: "1024"}
           - {name: EMBEDDING_REQUEST_DIMENSIONS, value: "true"}
