@@ -127,7 +127,10 @@
 | 정답값 DB 대조 | Data Scientist | 스크립트로 | 2h → 0.5h(−1.5h) |
 | 발표 데이터 | Data Scientist | 평가 결과 표 재사용 | 2h → 1h(−1h) |
 | 시연 | Cloud Engineer | 라이브 + 백업 캡처·화면 녹화 | 3h → 1h(−2h) |
-| gen11 조사, 설문(12문항, 구글 폼 11-26까지), 익명 발급 제한(이슈 #18), SA 발표 자료(기획서·README·평가 표 재사용) | 각 담당 | gen11 조사 안 함, 익명 발급 제한 넣지 않음(하루 상한은 질문 수만 막고 익명 토큰 발급 자체는 막지 않음) | 합계 약 −2h |
+| gen11 조사 | — | 조사 안 함(11-21 리허설 표 답변 `judge:ungrounded`) | −1h |
+| 사용자 테스트 설문 | Cloud Engineer, AI Solutions Architect | 12문항(#45), 구글 폼은 11-26까지 | Cloud Engineer 4h → 3.5h(−0.5h), AI Solutions Architect −0.5h |
+| 익명 발급 제한(이슈 #18) | — | 넣지 않음. 하루 상한은 질문 수만 막고 익명 토큰 발급 자체는 막지 않음 | 0h(남은 일 목록에 없던 항목) |
+| 발표 자료 | AI Solutions Architect | 기획서·README·평가 표 재사용 | −11.5h에 넣지 않음(SA 남은 일 15h에 이미 반영) |
 
 **일정 조정**
 - 빠지는 날: AI Engineer 11-28~29, Data Scientist 11-27 10~18시
@@ -165,6 +168,6 @@
 - [ ] 11-21 리허설: 시드 다음 `python -m jobs.load_real` → API 재시작 → 손 테스트 12문항(캐시 끔), 단계별 시간을 트레이스로 확인(Cloud Engineer)
 - [ ] 계획 JSON `refuse`에 범위 밖 부분(공시·뉴스 등) 반영(AI Engineer, 11-23 계획 JSON 도입 때)
 - [ ] 비교·순위 답변에 상품별 순자산 기준일 표시(담당은 채팅방에서 정함)
-- [ ] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, `docs/user-test-12` PR)
+- [ ] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, #45)
 - [ ] 사용자 테스트 구글 폼 만들기(Cloud Engineer, 11-26까지)
 - [ ] 재계획 루프 머지(AI Engineer, 11-24까지, 가장 중요)
