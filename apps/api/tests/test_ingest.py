@@ -10,7 +10,7 @@ from app.llm.fake import FakeEmbedder
 from app.rag.chunker import chunk_sections, parse_markdown
 from app.rag.ingest import ingest_bytes
 from app.repositories import documents as doc_repo
-from app.repositories.models import Chunk
+from app.repositories.models import Chunk, Document
 from app.settings import REPO_ROOT
 from jobs.ingest import resolve_target, source_uri_for
 from jobs.ingest.__main__ import _normalize_prefix, _validate_prefix_vs_targets
@@ -96,47 +96,79 @@ async def test_cli_fails_when_nothing_to_ingest(
 
 
 async def test_delete_prefix_removes_only_matching_docs() -> None:
-    """--delete-prefix로 샘플 경로 문서만 지워지고, 다른 경로·업로드 문서는 남는다."""
+    """--delete-prefix로 대상 경로 문서만 지워지고, 형제 경로·업로드 문서·공용 샘플 문서는 남는다."""
     emb = FakeEmbedder(dim=1024)
     maker = get_sessionmaker()
-    uris = [
-        "file://data/samples/docs/a.md",
-        "file://data/real/b.md",
-        "local://uploads/c.md",
-    ]
-    # 세 문서 적재
-    for uri in uris:
+
+    # 공용 샘플 문서 수를 미리 세어 둔다
+    async with maker() as s:
+        sample_count_before = await s.scalar(
+            select(func.count(Document.id)).where(
+                Document.source_uri.startswith("file://data/samples/docs/", autoescape=True)
+            )
+        )
+
+    # 공용 픽스처와 겹치지 않는 전용 경로
+    target_uri = "file://tests/delete-prefix/target/a.md"  # 지워질 것
+    sibling_uri = "file://tests/delete-prefix/target-2/x.md"  # 이름이 비슷하지만 남을 것
+    other_uri = "file://tests/delete-prefix/other/b.md"  # 남을 것
+    upload_uri = "local://uploads/tests-delete-prefix-c.md"  # 남을 것
+    all_uris = [target_uri, sibling_uri, other_uri, upload_uri]
+
+    try:
+        # 네 문서 적재
+        for uri in all_uris:
+            async with maker() as s:
+                await ingest_bytes(
+                    s, emb, source_uri=uri, filename="x.md", data=b"# T\n\n## S\n\nbody"
+                )
+
+        # 삭제 전 chunks 확인
         async with maker() as s:
-            await ingest_bytes(s, emb, source_uri=uri, filename="x.md", data=b"# T\n\n## S\n\nbody")
+            doc_target = await doc_repo.get_document_by_uri(s, target_uri)
+            assert doc_target is not None
+            target_chunk_count = await s.scalar(
+                select(func.count(Chunk.id)).where(Chunk.document_id == doc_target.id)
+            )
+            assert target_chunk_count and target_chunk_count > 0
 
-    # 삭제 전 chunks 확인
-    async with maker() as s:
-        doc_sample = await doc_repo.get_document_by_uri(s, uris[0])
-        assert doc_sample is not None
-        sample_chunk_count = await s.scalar(
-            select(func.count(Chunk.id)).where(Chunk.document_id == doc_sample.id)
-        )
-        assert sample_chunk_count and sample_chunk_count > 0
+        # prefix 삭제 — "tests/delete-prefix/target" 아래만 지워야 한다
+        async with maker() as s:
+            deleted = await doc_repo.delete_documents_by_prefix(s, "tests/delete-prefix/target")
+            await s.commit()
 
-    # prefix 삭제
-    async with maker() as s:
-        deleted = await doc_repo.delete_documents_by_prefix(s, "data/samples/docs")
-        await s.commit()
+        assert deleted == 1
 
-    assert deleted == 1
+        # 삭제된 문서와 chunks 확인
+        async with maker() as s:
+            assert await doc_repo.get_document_by_uri(s, target_uri) is None
+            remaining_chunks = await s.scalar(
+                select(func.count(Chunk.id)).where(Chunk.document_id == doc_target.id)
+            )
+            assert remaining_chunks == 0
 
-    # 삭제된 문서와 chunks 확인
-    async with maker() as s:
-        assert await doc_repo.get_document_by_uri(s, uris[0]) is None
-        remaining_chunks = await s.scalar(
-            select(func.count(Chunk.id)).where(Chunk.document_id == doc_sample.id)
-        )
-        assert remaining_chunks == 0
+        # 형제·다른 경로·업로드 문서 존재 확인
+        async with maker() as s:
+            assert await doc_repo.get_document_by_uri(s, sibling_uri) is not None
+            assert await doc_repo.get_document_by_uri(s, other_uri) is not None
+            assert await doc_repo.get_document_by_uri(s, upload_uri) is not None
 
-    # 나머지 문서 존재 확인
-    async with maker() as s:
-        assert await doc_repo.get_document_by_uri(s, uris[1]) is not None
-        assert await doc_repo.get_document_by_uri(s, uris[2]) is not None
+        # 공용 샘플 문서가 그대로인지 확인
+        async with maker() as s:
+            sample_count_after = await s.scalar(
+                select(func.count(Document.id)).where(
+                    Document.source_uri.startswith("file://data/samples/docs/", autoescape=True)
+                )
+            )
+        assert sample_count_after == sample_count_before
+    finally:
+        # 자기가 만든 문서를 모두 정리
+        async with maker() as s:
+            for uri in all_uris:
+                doc = await doc_repo.get_document_by_uri(s, uri)
+                if doc is not None:
+                    await s.delete(doc)
+            await s.commit()
 
 
 def test_normalize_prefix_strips_slashes_and_whitespace() -> None:
