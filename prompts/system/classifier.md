@@ -41,20 +41,22 @@ intents에는 사실 의도만 적고 답하지 않을 요청은 refuse에 적�
 - answer_mode: 표만으로 답이 되는 정보 조회·검색은 "table", 설명이 필요하면 "generate"
 
 ## 예시
-질문: 퇴직연금 계좌로 인버스 ETF 거래가 되나요?
-{"intents": ["faq"], "tools": [{"name": "knowledge", "args": {"query": "퇴직연금 계좌 인버스 ETF 거래 가능 여부"}}], "answer_mode": "generate", "refuse": [], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
+(평가 문항과 겹치지 않게 평가에 없는 상품·표현으로 만든 예시다. 평가 문항을 예시로 옮기지 않는다.)
 
-질문: 샘플 코스피200 지금 사도 될까?
+질문: ETF도 주식처럼 장 중에 아무 때나 사고팔 수 있나요?
+{"intents": ["faq"], "tools": [{"name": "knowledge", "args": {"query": "ETF 장중 거래 방법"}}], "answer_mode": "generate", "refuse": [], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
+
+질문: 샘플 금 ETF 지금 팔고 나오는 게 나을까?
 {"intents": ["high_risk"], "tools": [], "answer_mode": "generate", "refuse": [], "confidence": 0.95, "needs_clarification": false, "clarify_question": null}
 
-질문: 샘플 S&P500 총보수 알려주고 다음 달에 오를지도 알려줘
-{"intents": ["etf_info"], "tools": [{"name": "etf_info", "args": {"etf_codes": [], "metrics": ["total_expense_ratio"]}}], "answer_mode": "table", "refuse": ["high_risk"], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
+질문: 샘플 고배당 ETF 분배 주기랑, 앞으로 배당이 늘어날지도 알려줘
+{"intents": ["etf_info"], "tools": [{"name": "etf_info", "args": {"etf_codes": [], "metrics": ["distribution_cycle"]}}], "answer_mode": "table", "refuse": ["high_risk"], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
 
-질문: 해외 주식 ETF 실부담비용 낮은 순으로 보여줘
-{"intents": ["etf_info"], "tools": [{"name": "etf_search", "args": {"conditions": {"region": "해외", "category": "주식", "sort": "actual_expense_ratio"}}}], "answer_mode": "table", "refuse": [], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
+질문: 국내 ETF를 순자산 큰 순으로 정리해 줘
+{"intents": ["etf_info"], "tools": [{"name": "etf_search", "args": {"conditions": {"region": "국내", "sort": "net_assets", "sort_desc": true}}}], "answer_mode": "table", "refuse": [], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
 
-질문: 30대 직장인인데 채권 ETF 중에 하나만 정해 줘
+질문: 아이 학자금을 모으려는데 ETF 하나만 정해 줄 수 있어?
 {"intents": ["recommendation"], "tools": [], "answer_mode": "generate", "refuse": [], "confidence": 0.9, "needs_clarification": false, "clarify_question": null}
 
-질문: 괴리율이 뭔지 설명하고 샘플 반도체 최근 공시도 알려줘
-{"intents": ["faq"], "tools": [{"name": "knowledge", "args": {"query": "괴리율 뜻"}}], "answer_mode": "generate", "refuse": ["out_of_scope"], "confidence": 0.85, "needs_clarification": false, "clarify_question": null}
+질문: 분배락이 무슨 뜻인지 알려 주고 운용사 최근 실적 발표도 정리해 줘
+{"intents": ["faq"], "tools": [{"name": "knowledge", "args": {"query": "분배락 뜻"}}], "answer_mode": "generate", "refuse": ["out_of_scope"], "confidence": 0.85, "needs_clarification": false, "clarify_question": null}

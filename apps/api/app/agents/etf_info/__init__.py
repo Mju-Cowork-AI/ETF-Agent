@@ -15,7 +15,9 @@ NO_PRICE_NOTE = (
     "이 서비스는 시세(종가·NAV·괴리율·거래량)를 제공하지 않습니다. "
     "현재 시세는 운용사 홈페이지나 한국거래소에서 확인해 주세요."
 )
-_PRICE_WORDS = re.compile(r"시세|종가|현재가|시가|주가|가격|얼마에\s*거래|nav|괴리율|거래량", re.I)
+_PRICE_WORDS = re.compile(
+    r"시세|종가|현재가|시가(?!\s*총액)|주가|가격|얼마에\s*거래|nav|괴리율|거래량", re.I
+)
 
 
 def asks_price(text: str) -> bool:
@@ -39,8 +41,13 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             else:
                 table = compare.detail_table(etfs[0], prices.get(etfs[0].ticker))
                 title = f"{etfs[0].name} 정보"
-            # 시세를 물었는데 DB에 시세가 없으면(실데이터는 시세 미수집, 범위 조정 2차) 안내한다
-            if asks_price(state["normalized"]) and not any(e.ticker in prices for e in etfs):
+            # 시세를 물었는데 DB에 시세가 없으면(실데이터는 시세 미수집, 범위 조정 2차) 안내한다.
+            # '주가 오를까?'처럼 전망을 묻는 부분은 거절 문장(refuse)이 답하므로 안내를 붙이지 않는다.
+            if (
+                asks_price(state["normalized"])
+                and "high_risk" not in (state.get("refuse") or [])
+                and not any(e.ticker in prices for e in etfs)
+            ):
                 notes.append(NO_PRICE_NOTE)
         else:
             catalog = await load_catalog(deps.maker)
