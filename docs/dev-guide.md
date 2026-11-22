@@ -114,6 +114,7 @@ git merge origin/dev     # 충돌이 나면 해결 후 커밋
 - `dev` → `main` PR은 **selee1012만** 머지할 수 있고, **merge commit** 방식만 허용됩니다.
 - `main`으로는 `dev`에서 온 PR만 허용됩니다. 다른 브랜치에서 올리면 CI가 "main으로는 dev에서만 PR 가능"으로 실패합니다.
 - 릴리스마다 태그를 붙입니다: `v1.0`, `v1.1` …
+- `main`에 머지되면 API와 웹이 자동으로 배포됩니다(`deploy` 워크플로, [infra/azure/README.md](../infra/azure/README.md) "자동 배포"). `dev`에 머지하는 것만으로는 배포되지 않습니다.
 
 ```bash
 gh pr create --base main --head dev --title "release: v1.0"
