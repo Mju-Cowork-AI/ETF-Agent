@@ -3,9 +3,8 @@
 질문 → preprocess ┬→ template → END (개인정보: 외부 호출 전 차단)
                   └→ orchestrate ─┬→ etf_info ─┐  (자료 수집, LLM 없음, 동시에)
       (의도 분류 ∥ 문서 검색 선행)  ├→ faq      ─┼→ compose → guard ─┬→ END (통과)
-                                ├→ disclosure┘  (LLM 1회)        ├→ retry → compose (합성만 다시)
-                                ├→ compose (일반 대화, 로컬 전용)   └→ safe → END (재생성 후 실패)
-                                └→ template → END
+                                ├→ compose (일반 대화, 로컬 전용) ├→ retry → compose (합성만 다시)
+                                └→ template → END               └→ safe → END (재생성 후 실패)
 
 - 개인정보가 든 질문은 전처리에서 원문으로 검사해 바로 template으로 보낸다. 분류 LLM과
   임베딩(_prefetch)을 부르기 전이다. 로그·트레이스에는 종류(pii:CARD 등)만 남긴다. # P1-AG-06
@@ -29,7 +28,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app import cache
 from app.agents import compose as composer
-from app.agents import disclosure, etf_info, faq
+from app.agents import etf_info, faq
 from app.agents.guard import run_guard
 from app.agents.guard.judge import UNVERIFIED
 from app.agents.guard.templates import high_risk_answer, safe_answer, template_answer
@@ -65,7 +64,6 @@ MAX_RETRIES = 1
 _AGENTS = {
     "etf_info": etf_info.run,
     "faq": faq.run,
-    "disclosure": disclosure.run,
 }
 
 
@@ -153,8 +151,8 @@ async def orchestrate_node(state: GraphState, config: RunnableConfig) -> dict[st
         if picked := [c for c in codes if c in catalog]:
             update["entities"] = [EtfEntity(t, catalog[t].name, "", 0.0, "plan") for t in picked]
             entities = update["entities"]
-    # 이번 질문에 ETF가 없으면 직전 턴의 ETF를 이어 쓴다(ETF 정보·공시 의도일 때만).
-    if not entities and context and (Intent.ETF_INFO in intents or Intent.DISCLOSURE in intents):
+    # 이번 질문에 ETF가 없으면 직전 턴의 ETF를 이어 쓴다(ETF 정보 의도일 때만).
+    if not entities and context and Intent.ETF_INFO in intents:
         catalog = {c.ticker: c for c in await load_catalog(deps.maker)}
         # 조건 검색('총보수 0.1% 이하 해외 주식 ETF 찾아줘')은 직전 ETF의 후속 질문이 아니다.
         # 직전 ETF를 넣으면 검색 대신 그 ETF의 정보표가 다시 나온다.
@@ -172,7 +170,7 @@ def _is_condition_search(text: str, intents: list[str], catalog: Any) -> bool:
     표현이 있을 때만 본다('해외 주식형이랑 비교하면?'은 후속 질문). 직전 상품을 가리키면
     ('이 상품 총보수 0.1% 이하 맞아?') 조건이 있어도 후속 질문이다.
     """
-    if Intent.DISCLOSURE in intents or refers_to_previous(text):
+    if refers_to_previous(text):
         return False
     indexes = sorted({c.underlying_index for c in catalog if c.underlying_index})
     filters = etf_search.parse_filters(text, indexes)
@@ -306,6 +304,7 @@ async def guard_node(state: GraphState, config: RunnableConfig) -> dict[str, Any
             evidence=state.get("evidence") or [],
             generated=bool(state.get("generated")),
             grounded=state.get("grounded", True),
+            question=state.get("normalized") or state.get("query") or "",
         )
         res_reasons, passed = g.reasons, g.passed
     if passed:

@@ -27,7 +27,7 @@ from app.logging import get_logger
 
 log = get_logger(__name__)
 
-SECTION_TITLE = {"etf_info": "ETF 정보", "faq": "설명", "disclosure": "공시", "general": "답변"}
+SECTION_TITLE = {"etf_info": "ETF 정보", "faq": "설명", "general": "답변"}
 ORDER = tuple(i.value for i in AGENT_INTENTS)
 DISCLAIMER_HEADER = "---\n**고지**"
 PARTIAL_NOTE = "_일부 정보는 지금 가져오지 못했습니다. 잠시 후 다시 시도해 주세요._"

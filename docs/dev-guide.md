@@ -131,12 +131,11 @@ git fetch origin && git tag v1.0 origin/main && git push origin v1.0
 | 키 | 용도 |
 |---|---|
 | `LLM_API_KEY` | LLM 호출 |
-| `DART_API_KEY` | 전자공시(DART) |
 
 ### 키 등록·교체 (관리자)
 
 ```bash
-KV_NAME=<Key Vault 이름> scripts/set-secret.sh DART_API_KEY
+KV_NAME=<Key Vault 이름> scripts/set-secret.sh LLM_API_KEY
 ```
 
 값은 화면에 보이지 않게 입력받아 Key Vault와 GitHub Secrets에 함께 저장합니다.

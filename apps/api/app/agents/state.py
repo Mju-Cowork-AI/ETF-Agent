@@ -28,7 +28,7 @@ class Intent(StrEnum):
 
 
 # 전문 에이전트가 처리하는 의도(나머지는 템플릿)
-AGENT_INTENTS = (Intent.ETF_INFO, Intent.FAQ, Intent.DISCLOSURE)
+AGENT_INTENTS = (Intent.ETF_INFO, Intent.FAQ)
 TEMPLATE_INTENTS = (
     Intent.PII,
     Intent.BLOCKED,
