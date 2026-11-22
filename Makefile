@@ -72,8 +72,8 @@ seed: check-env ## 샘플 ETF 마스터·시세·공시 적재(P1-DA-02)
 	$(API_EXEC) python -m jobs.seed
 
 .PHONY: ingest
-ingest: check-env ## 샘플 문서 청킹·임베딩 적재(P1-DA-03). 다른 경로: make ingest ARGS="레포 기준 경로 [--force]"
-	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/samples/docs)
+ingest: check-env ## 개념 문서 청킹·임베딩 적재(P1-DA-03). make ingest ARGS="경로 [--force] [--delete-prefix 삭제경로]"
+	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/docs)
 
 .PHONY: load-real
 load-real: check-env ## 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개 upsert)
