@@ -283,6 +283,7 @@ async def guard_node(state: GraphState, config: RunnableConfig) -> dict[str, Any
             evidence=state.get("evidence") or [],
             generated=bool(state.get("generated")),
             grounded=state.get("grounded", True),
+            question=state.get("normalized") or state.get("query") or "",
         )
         res_reasons, passed = g.reasons, g.passed
     if passed:
