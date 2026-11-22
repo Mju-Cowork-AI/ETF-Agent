@@ -12,7 +12,7 @@ from app.rag.ingest import ingest_bytes
 from app.repositories import documents as doc_repo
 from app.repositories.models import Chunk
 from app.settings import REPO_ROOT
-from jobs.ingest import resolve_target
+from jobs.ingest import resolve_target, source_uri_for
 from jobs.ingest.__main__ import _normalize_prefix, _validate_prefix_vs_targets
 from jobs.ingest.__main__ import main as ingest_cli
 
@@ -152,11 +152,23 @@ def test_normalize_prefix_rejects_empty() -> None:
 
 
 def test_validate_prefix_rejects_overlapping_target() -> None:
+    # 상대 경로 → resolve_target이 REPO_ROOT / "data/docs"로 풀린다
+    resolved = [REPO_ROOT / "data/docs"]
     with pytest.raises(ValueError, match="포함"):
-        _validate_prefix_vs_targets("data", ["data/docs"])
+        _validate_prefix_vs_targets("data", resolved)
     with pytest.raises(ValueError, match="포함"):
-        _validate_prefix_vs_targets("data/docs", ["data/docs"])
+        _validate_prefix_vs_targets("data/docs", resolved)
+
+
+def test_validate_prefix_rejects_overlapping_absolute_target() -> None:
+    """절대 경로(/workspace/data/docs 등)도 source_uri 변환 후 겹침을 잡는다."""
+    resolved = [REPO_ROOT / "data/docs"]
+    # source_uri_for(REPO_ROOT / "data/docs") == "file://data/docs"
+    assert source_uri_for(resolved[0]) == "file://data/docs"
+    with pytest.raises(ValueError, match="포함"):
+        _validate_prefix_vs_targets("data/docs", resolved)
 
 
 def test_validate_prefix_allows_sibling_paths() -> None:
-    _validate_prefix_vs_targets("data/samples/docs", ["data/docs"])
+    resolved = [REPO_ROOT / "data/docs"]
+    _validate_prefix_vs_targets("data/samples/docs", resolved)
