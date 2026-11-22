@@ -13,6 +13,19 @@ async def get_document_by_uri(session: AsyncSession, source_uri: str) -> Documen
     return await session.scalar(select(Document).where(Document.source_uri == source_uri))
 
 
+async def delete_documents_by_prefix(session: AsyncSession, prefix: str) -> int:
+    """source_uri가 ``file://<prefix>/`` 로 시작하는 문서를 삭제한다.
+
+    FK CASCADE(ondelete="CASCADE")가 걸려 있어 chunks도 함께 삭제된다.
+    반환값은 삭제된 문서 수이다.
+    """
+    uri_prefix = f"file://{prefix}/"
+    result = await session.execute(
+        delete(Document).where(Document.source_uri.startswith(uri_prefix, autoescape=True))
+    )
+    return result.rowcount  # type: ignore[return-value]
+
+
 async def replace_document(
     session: AsyncSession,
     *,

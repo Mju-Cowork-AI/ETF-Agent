@@ -1,4 +1,4 @@
-# 마이그레이션 → 샘플 시드 → 실데이터 적재(샘플 ETF·시세·공시 삭제) → 샘플 문서 적재 작업 정의 예시(비밀 값 없음). infra/azure/README.md 참고
+# 마이그레이션 → 샘플 시드 → 실데이터 적재(샘플 ETF·시세·공시 삭제) → 문서 적재(샘플 문서 삭제 후 data/docs 적재) 작업 정의 예시(비밀 값 없음). infra/azure/README.md 참고
 # 만들기: az containerapp job create -g rg-etf-agent -n caj-etf-agent-setup --yaml <이 파일을 채운 사본>
 # 실행:   az containerapp job start -g rg-etf-agent -n caj-etf-agent-setup
 location: koreacentral
@@ -33,7 +33,7 @@ properties:
       - name: setup
         image: acretfagentb084.azurecr.io/etf-agent-api:<태그>
         command: ["/bin/sh", "-c"]
-        args: ["alembic upgrade head && python -m jobs.seed && python -m jobs.load_real && python -m jobs.ingest /workspace/data/samples/docs"]
+        args: ["alembic upgrade head && python -m jobs.seed && python -m jobs.load_real && python -m jobs.ingest /workspace/data/docs --delete-prefix data/samples/docs"]
         resources: {cpu: 0.5, memory: 1Gi}
         env:
           - {name: APP_ENV, value: prod}
@@ -45,6 +45,7 @@ properties:
           - {name: LLM_API_KEY, secretRef: llm-api-key}
           - {name: LLM_MODEL, value: gpt-6-sol}
           - {name: JUDGE_MODEL, value: gpt-6-luna}
+          - {name: PLAN_MODEL, value: gpt-6-luna}
           - {name: EMBEDDING_MODEL, value: text-embedding-3-small}
           - {name: EMBEDDING_DIM, value: "1024"}
           - {name: EMBEDDING_REQUEST_DIMENSIONS, value: "true"}

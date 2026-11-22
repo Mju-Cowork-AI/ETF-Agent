@@ -23,7 +23,7 @@ def resolve_target(raw: str) -> Path:
 
     `.`, `./docs`, `../docs`처럼 실행 위치를 명시한 경로는 실행 위치 기준으로만 찾는다.
 
-    make ingest는 컨테이너의 apps/api에서 실행되므로 `data/samples/docs` 같은 레포 기준 경로가
+    make ingest는 컨테이너의 apps/api에서 실행되므로 `data/docs` 같은 레포 기준 경로가
     그대로는 없는 경로가 된다. 없는 경로는 빈 목록이 되어 아무것도 적재하지 않고 성공으로 끝났다.
     """
     path = Path(raw)

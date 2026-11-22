@@ -1,7 +1,7 @@
 # eval-sets
 
 `make eval`(ml/eval)이 읽는 오프라인 평가 세트. 지금 파일은 **형식 예시 10~15줄씩**이고 본 데이터는 팀이 채운다.
-모든 질문은 `data/samples`의 샘플 ETF·문서를 기준으로 한다.
+모든 질문은 `data/samples`의 샘플 ETF·문서를 기준으로 한다. `data/samples/docs/`는 테스트 전용 샘플이고, 실제 적재 문서는 `data/docs/`에 있다.
 
 | 파일 | 지표 | 필드 |
 | --- | --- | --- |

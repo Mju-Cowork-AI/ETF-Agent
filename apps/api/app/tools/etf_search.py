@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,17 +102,28 @@ class EtfFilters:
     min_fee: Decimal | None = None
     max_exclusive: bool = False  # 미만(경계값 제외)
     min_exclusive: bool = False  # 초과(경계값 제외)
+    sort: str | None = None  # 정렬 기준(SORT_LABELS의 키). 없으면 총보수 낮은 순
+    sort_desc: bool = False
 
     def has_fee(self) -> bool:
         return self.max_fee is not None or self.min_fee is not None
 
     def is_empty(self) -> bool:
         # 보수 0도 조건이다(Decimal(0)은 거짓이라 값의 참거짓으로 보면 안 된다).
+        # 정렬만 있어도('실부담비용 순서대로') 전체 상품을 그 기준으로 보여 주는 조건 검색이다.
         return (
-            not any((self.category, self.region, self.underlying_index))
+            not any((self.category, self.region, self.underlying_index, self.sort))
             and self.max_fee is None
             and self.min_fee is None
         )
+
+    def sort_key(self) -> str:
+        return self.sort or "total_expense_ratio"
+
+    def sort_label(self) -> str:
+        """'실부담비용 낮은 순'처럼 정렬 기준과 방향."""
+        name, low, high = SORT_LABELS[self.sort_key()]
+        return f"{name} {high if self.sort_desc else low} 순"
 
     def describe(self) -> str:
         parts = []
@@ -126,13 +137,57 @@ class EtfFilters:
             parts.append(f"총보수 {self.max_fee}% {'미만' if self.max_exclusive else '이하'}")
         if self.min_fee is not None:
             parts.append(f"총보수 {self.min_fee}% {'초과' if self.min_exclusive else '이상'}")
+        if self.sort:
+            parts.append(self.sort_label())
         return ", ".join(parts) or "조건 없음"
+
+
+# ---------- 정렬 ----------
+# 이름 → (표시 이름, 오름차순 표현, 내림차순 표현)
+SORT_LABELS = {
+    "total_expense_ratio": ("총보수", "낮은", "높은"),
+    "actual_expense_ratio": ("실부담비용", "낮은", "높은"),
+    "net_assets": ("순자산", "작은", "큰"),
+}
+# '실부담비용 순서대로', '순자산 큰 순', '총보수가 가장 낮은'
+_SORT_METRIC = r"(?P<metric>실부담\s*비용|총\s*보수|보수|순자산|규모)"
+_SORT_WORD = re.compile(
+    _SORT_METRIC + r"\s*(?:이|가|을|를|의)?\s*(?:(?:가장|제일)\s*)?"
+    r"(?P<dir>낮|높|싼|비싼|저렴|크|큰|작|적|많)?[은는게]?\s*"
+    r"(?P<order>순서|순위|순으로|순|정렬|차례|것|상품|etf|ETF)?"
+)
+_DESC_WORDS = ("높", "비싼", "크", "큰", "많")
+
+
+def _parse_sort(text: str, f: EtfFilters) -> None:
+    """정렬 표현이 있으면 기준과 방향을 채운다. 기준 단어만 있고 순서·최상급 표현이 없으면 무시한다."""
+    for m in _SORT_WORD.finditer(text):
+        direction, order = m.group("dir"), m.group("order")
+        superlative = re.search(r"가장|제일", m.group(0))
+        if not (
+            order in ("순서", "순위", "순으로", "순", "정렬", "차례") or (superlative and direction)
+        ):
+            continue
+        metric = re.sub(r"\s", "", m.group("metric"))
+        if metric == "실부담비용":
+            f.sort = "actual_expense_ratio"
+        elif metric in ("순자산", "규모"):
+            f.sort = "net_assets"
+        else:
+            f.sort = "total_expense_ratio"
+        if f.sort == "net_assets":
+            # 순자산은 '큰 순'이 기본이다('순자산 순으로' → 큰 순)
+            f.sort_desc = not (direction and direction.startswith(("작", "적")))
+        else:
+            f.sort_desc = bool(direction and direction.startswith(_DESC_WORDS))
+        return
 
 
 def parse_filters(text: str, known_indexes: list[str]) -> EtfFilters:
     f = EtfFilters()
     low = text.lower()
     _parse_fee(text, f)
+    _parse_sort(text, f)
     for word, cat in _CATEGORY:
         if word in low:
             f.category = cat
@@ -150,6 +205,40 @@ def parse_filters(text: str, known_indexes: list[str]) -> EtfFilters:
     return f
 
 
+def _fee(value: object) -> Decimal | None:
+    try:
+        d = Decimal(str(value).strip().rstrip("%"))
+    except InvalidOperation, ValueError:
+        return None
+    return d if d.is_finite() and 0 <= d <= 10 else None
+
+
+def merge_plan_conditions(
+    f: EtfFilters, cond: dict[str, object], known_indexes: list[str]
+) -> EtfFilters:
+    """질문 문장 규칙으로 못 채운 조건만 계획 JSON(etf_search.conditions)으로 채운다.
+
+    규칙이 찾은 값이 우선이다. 계획 값은 DB가 쓰는 값(지역·분류·기초지수 이름·정렬 키)일 때만 받는다.
+    모델이 지어낸 분류명으로 검색하면 0건이 나오기 때문이다.
+    """
+    if not cond:
+        return f
+    categories = {cat for _, cat in _CATEGORY}
+    if f.region is None and cond.get("region") in REGIONS:
+        f.region = str(cond["region"])
+    if f.category is None and cond.get("category") in categories:
+        f.category = str(cond["category"])
+    if f.underlying_index is None and cond.get("underlying_index") in known_indexes:
+        f.underlying_index = str(cond["underlying_index"])
+    if not f.has_fee():
+        f.max_fee = _fee(cond["max_fee"]) if cond.get("max_fee") is not None else None
+        f.min_fee = _fee(cond["min_fee"]) if cond.get("min_fee") is not None else None
+    if f.sort is None and cond.get("sort") in SORT_LABELS:
+        f.sort = str(cond["sort"])
+        f.sort_desc = cond.get("sort_desc") is True
+    return f
+
+
 def _repo_filters(f: EtfFilters) -> dict[str, object]:
     # 지역은 분류 앞머리('국내 주식 …')로만 알 수 있다. '부동산'·'원자재'처럼 지역 표기가 없는
     # 분류를 함께 물으면('국내 리츠') 지역을 확인할 수 없으므로 그 분류의 상품은 빼지 않는다.
@@ -162,6 +251,8 @@ def _repo_filters(f: EtfFilters) -> dict[str, object]:
         "min_fee": f.min_fee,
         "max_fee_exclusive": f.max_exclusive,
         "min_fee_exclusive": f.min_exclusive,
+        "sort": f.sort_key(),
+        "descending": f.sort_desc,
     }
 
 
@@ -176,7 +267,8 @@ async def unverifiable_note(session: AsyncSession, f: EtfFilters) -> str:
     외부 수집으로 들어온 상품은 분류·총보수가 없고, '부동산'·'원자재' 같은 분류는 지역을 알 수 없다.
     말없이 빼면 '조건에 맞는 상품은 이것뿐'으로 읽힌다. 확인된 값으로 탈락한 상품은 세지 않는다.
     """
-    n = await etf_repo.count_unverifiable(session, **_repo_filters(f))
+    args = {k: v for k, v in _repo_filters(f).items() if k not in ("sort", "descending")}
+    n = await etf_repo.count_unverifiable(session, **args)
     if not n:
         return ""
     used = (

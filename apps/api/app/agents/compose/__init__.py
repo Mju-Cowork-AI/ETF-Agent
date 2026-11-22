@@ -27,7 +27,7 @@ from app.logging import get_logger
 
 log = get_logger(__name__)
 
-SECTION_TITLE = {"etf_info": "ETF 정보", "faq": "설명", "disclosure": "공시", "general": "답변"}
+SECTION_TITLE = {"etf_info": "ETF 정보", "faq": "설명", "general": "답변"}
 ORDER = tuple(i.value for i in AGENT_INTENTS)
 DISCLAIMER_HEADER = "---\n**고지**"
 PARTIAL_NOTE = "_일부 정보는 지금 가져오지 못했습니다. 잠시 후 다시 시도해 주세요._"
@@ -80,6 +80,28 @@ def full_answer(body: str, disclaimer_ids: list[str]) -> str:
     return f"{body}\n\n{block}" if block else body
 
 
+# ---------- 거절 문장(섞인 질문) ----------
+def refusal_texts() -> dict[str, str]:
+    return dict(load_yaml("templates/refusals.yaml")["refusals"])
+
+
+def with_refusals(body: str, refuse: list[str]) -> str:
+    """사실 부분 답 뒤에 답하지 않은 부분의 거절 문장을 붙인다(계획 JSON의 refuse)."""
+    texts = refusal_texts()
+    lines = [texts[r] for r in dict.fromkeys(refuse) if r in texts]
+    return body + "\n\n" + "\n".join(lines) if lines else body
+
+
+def _refuse_note(state: GraphState) -> str:
+    if not state.get("refuse"):
+        return ""
+    return (
+        "\n\n[답하지 않을 부분] 질문에 사실 확인이 아닌 부분(판단·전망·추천·서비스 범위 밖)이 "
+        "섞여 있습니다. 그 부분은 언급하지 말고 자료로 확인되는 사실만 답하세요. "
+        "거절 문장은 시스템이 따로 붙입니다."
+    )
+
+
 # ---------- 합성 ----------
 def _dedupe(sources: list[Source]) -> list[Source]:
     return list({(s.title, s.location, s.url): s for s in sources}.values())
@@ -99,6 +121,7 @@ async def _write(
         (f"[이전 대화]\n{hist}\n\n" if hist else "")
         + f"[질문]\n{state['normalized']}\n\n"
         + "\n\n".join(r.context for r in found if r.context)
+        + _refuse_note(state)
         + retry_note(state)
     )
     resp = await deps.llm.complete(

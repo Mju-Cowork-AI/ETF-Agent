@@ -51,7 +51,7 @@ down: check-env ## 모든 컨테이너 중지(볼륨 유지)
 	$(COMPOSE) down
 
 .PHONY: restart
-restart: check-env ## api 재시작 — seed·ingest·collect 뒤 API의 메모리 캐시를 비운다
+restart: check-env ## api 재시작 — seed·ingest 뒤 API의 메모리 캐시를 비운다
 	$(COMPOSE) restart api
 
 .PHONY: ps
@@ -72,16 +72,12 @@ seed: check-env ## 샘플 ETF 마스터·시세·공시 적재(P1-DA-02)
 	$(API_EXEC) python -m jobs.seed
 
 .PHONY: ingest
-ingest: check-env ## 샘플 문서 청킹·임베딩 적재(P1-DA-03). 다른 경로: make ingest ARGS="레포 기준 경로 [--force]"
-	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/samples/docs)
+ingest: check-env ## 개념 문서 청킹·임베딩 적재(P1-DA-03). make ingest ARGS="경로 [--force] [--delete-prefix 삭제경로]"
+	$(API_EXEC) python -m jobs.ingest $(or $(ARGS),/workspace/data/docs)
 
 .PHONY: load-real
 load-real: check-env ## 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개 upsert)
 	$(API_EXEC) python -m jobs.load_real $(ARGS)
-
-.PHONY: collect
-collect: check-env ## 공공데이터포털·DART 수집(키가 없으면 안내만 출력)
-	$(API_EXEC) python -m jobs.collector $(ARGS)
 
 # ---------- 품질 ----------
 .PHONY: test

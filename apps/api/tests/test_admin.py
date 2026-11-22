@@ -21,13 +21,13 @@ async def test_admin_traces_filters(
 ) -> None:
     await client.post("/chat", json={"message": "ETF 추천해줘"}, headers=user_headers)
     resp = await client.post(
-        "/chat", json={"message": "샘플 반도체 비교하고 뉴스도"}, headers=user_headers
+        "/chat", json={"message": "샘플 반도체 괴리율 알려줘"}, headers=user_headers
     )
     rid = parse_sse(resp.text)[-1][1]["request_id"]
 
-    page = (await client.get("/admin/traces?intent=disclosure", headers=admin_headers)).json()
+    page = (await client.get("/admin/traces?intent=etf_info", headers=admin_headers)).json()
     assert rid in [t["request_id"] for t in page["items"]]
-    assert all("disclosure" in t["intent"].split("+") for t in page["items"])
+    assert all("etf_info" in t["intent"].split("+") for t in page["items"])
     page = (await client.get("/admin/traces?verdict=template", headers=admin_headers)).json()
     assert page["total"] >= 1
     assert all(t["guard_verdict"] == "template" for t in page["items"])

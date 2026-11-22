@@ -68,7 +68,7 @@ class FakeLLM(LLMClient):
         max_tokens: int | None = None,
         json_mode: bool = False,
     ) -> LLMResponse:
-        self.calls.append({"task": task, "intent": intent, "json_mode": json_mode})
+        self.calls.append({"task": task, "intent": intent, "json_mode": json_mode, "model": model})
         queue = self._script.get(task)
         if queue:
             item = queue.popleft()

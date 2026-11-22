@@ -1,0 +1,7 @@
+# 섞인 질문(사실 + 판단·범위 밖)에서 답하지 않은 부분에 붙이는 거절 문장.
+# 계획 JSON의 refuse 값(docs/interface.md)이 키다. 사실 부분 답 뒤, 고지 앞에 코드가 붙인다.
+# 가드 룰(guard/rules.yaml)에 걸리지 않는 표현만 쓴다(테스트: test_refusal_lines_pass_guard_rules).
+refusals:
+  high_risk: 매수·매도 시점이나 가격·수익 전망 같은 판단은 드리지 않습니다. 위 정보를 참고해 직접 판단해 주세요.
+  recommendation: 개인 상황에 맞춘 특정 상품 추천은 드리지 않습니다. 총보수·실부담비용·순자산 같은 기준으로 직접 비교해 보세요.
+  out_of_scope: 공시·뉴스처럼 이 서비스에서 다루지 않는 내용에는 답하지 않습니다.

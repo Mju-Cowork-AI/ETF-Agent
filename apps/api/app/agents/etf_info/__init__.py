@@ -46,6 +46,9 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             catalog = await load_catalog(deps.maker)
             indexes = sorted({c.underlying_index for c in catalog if c.underlying_index})
             filters = etf_search.parse_filters(state["normalized"], indexes)
+            filters = etf_search.merge_plan_conditions(
+                filters, state.get("plan_conditions") or {}, indexes
+            )
             if filters.is_empty():
                 return AgentResult(
                     agent=NAME,
@@ -74,11 +77,11 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
                 notes.append(
                     f"다음 상품은 분류에 지역 표기가 없어 {filters.region} 상품인지 확인하지 못했습니다: {names}"
                 )
-            table = compare.list_table(etfs)
+            table = compare.list_table(etfs, net_assets=filters.sort_key() == "net_assets")
             title = f"검색 결과({filters.describe()}) {len(etfs)}건"
             if more:
                 title = (
-                    f"검색 결과({filters.describe()}) 총보수가 낮은 순으로 {len(etfs)}건만 표시"
+                    f"검색 결과({filters.describe()}) {filters.sort_label()}으로 {len(etfs)}건만 표시"
                     "(조건에 맞는 상품이 더 있습니다)"
                 )
             dates = []
