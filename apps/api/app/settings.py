@@ -171,7 +171,7 @@ class Settings(BaseSettings):
     rag_vector_weight: float = Field(default=0.7, ge=0, le=1)
     rag_min_score: float = Field(default=0.25, ge=0, le=1)
     entity_fuzzy_threshold: int = Field(default=80, ge=0, le=100)
-    inquiry_channel: str = "고객센터(샘플) 1588-0000 · 홈페이지 1:1 문의"
+    inquiry_channel: str = "가입하신 증권사나 운용사 고객센터"
     # 일반 대화 모드(개인용 로컬 전용): ETF 범위 밖 질문·근거 없는 질문에도 LLM이 자유롭게 답한다.
     # 고위험·ETF 추천은 계속 템플릿, 금칙 표현·개인정보 룰 가드는 그대로 적용. APP_ENV=local에서만 허용.
     general_chat_enabled: bool = False

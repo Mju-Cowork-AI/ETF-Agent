@@ -173,7 +173,10 @@ async def test_high_risk_uses_template_without_generation(
     st = await ask(deps, q)
     assert st["intents"] == ["high_risk"]
     assert st["verdict"] == "template"
-    assert st["answer"].splitlines()[0].find("준법감시 승인 전 초안") >= 0
+    # 내부 검토 표기("준법감시 ... 초안")와 가짜 전화번호는 화면에 나오지 않는다
+    assert "준법감시" not in st["answer"]
+    assert "1588-0000" not in st["answer"]
+    assert deps.settings.inquiry_channel in st["answer"]
     assert st["agents_called"] == [f"template:high_risk/{kind}"]
     # 분류 외에는 LLM을 부르지 않는다
     assert {c["task"] for c in fake_llm.calls} <= {"classify"}

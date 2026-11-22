@@ -11,7 +11,7 @@
 | `guard/rules.yaml` | 가드 ①(P1-AG-06) | 금칙 표현 정규식, 근거 수치 검사 설정, 개인정보 검사 켜기 |
 | `guard/disclaimers.yaml` | 합성(가드 ①이 결과를 검사) | 의도별 필수 고지 |
 | `guard/judge.md` | 가드 ② | 검증 모델 JSON 판정 지시 |
-| `templates/high_risk/*.md` | 가드 ③ | 고위험 의도 고정 답변(준법감시 승인 전 초안) |
+| `templates/high_risk/*.md` | 가드 ③ | 고위험 의도 고정 답변. 준법감시 검토 전 초안(화면에는 표시하지 않음) |
 | `templates/*.md` | 그래프·채팅 서비스 | 추천(거절·비교 기준 안내)·범위 밖·차단·안전 답변 |
 | `templates/refusals.yaml` | 답변 합성 | 섞인 질문에서 답하지 않은 부분(`refuse`)에 붙이는 거절 문장 |
 | `templates/pii_blocked.md` | 그래프 전처리(P1-AG-06) | 개인정보가 든 질문 안내. 분류 LLM·임베딩 호출 전에 답한다 |
