@@ -12,9 +12,9 @@ import { LEVELS, getChatLevel, saveChatLevel } from '../lib/levels'
 import { MessageView, type ChatMessage } from './MessageView'
 
 const EXAMPLES = [
-  '샘플 코스피200이랑 샘플 미국S&P500 비교해줘',
-  '샘플 미국나스닥100 괴리율 알려줘',
-  'ETF 괴리율이 뭐야?',
+  'KODEX 200이랑 TIGER 미국배당다우존스 비교해줘',
+  'TIGER 미국나스닥100 실부담비용 알려줘',
+  '총보수랑 실부담비용 차이가 뭐야?',
 ]
 
 let seq = 0
@@ -248,7 +248,7 @@ export function ChatView({
         <div className="messages">
           {!messages.length && (
             <div className="empty">
-              <p>ETF 정보·개념을 물어보세요. 모든 데이터는 개발용 샘플입니다.</p>
+              <p>ETF 정보·개념을 물어보세요. 수치는 표에 적힌 기준일의 값입니다.</p>
               <div className="examples">
                 {EXAMPLES.map((q) => (
                   <button type="button" key={q} className="chip" onClick={() => void ask(q)}>
