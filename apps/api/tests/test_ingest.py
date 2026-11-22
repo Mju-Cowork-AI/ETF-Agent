@@ -3,14 +3,17 @@
 from pathlib import Path
 
 import pytest
+from sqlalchemy import func, select
 
 from app.db import get_sessionmaker
 from app.llm.fake import FakeEmbedder
 from app.rag.chunker import chunk_sections, parse_markdown
 from app.rag.ingest import ingest_bytes
 from app.repositories import documents as doc_repo
+from app.repositories.models import Chunk
 from app.settings import REPO_ROOT
 from jobs.ingest import resolve_target
+from jobs.ingest.__main__ import _normalize_prefix, _validate_prefix_vs_targets
 from jobs.ingest.__main__ import main as ingest_cli
 
 
@@ -87,3 +90,73 @@ async def test_cli_fails_when_nothing_to_ingest(
     assert out
     if kind == "unreadable":
         assert "broken.pdf" in out
+
+
+# ---------- --delete-prefix ----------
+
+
+async def test_delete_prefix_removes_only_matching_docs() -> None:
+    """--delete-prefix로 샘플 경로 문서만 지워지고, 다른 경로·업로드 문서는 남는다."""
+    emb = FakeEmbedder(dim=1024)
+    maker = get_sessionmaker()
+    uris = [
+        "file://data/samples/docs/a.md",
+        "file://data/real/b.md",
+        "local://uploads/c.md",
+    ]
+    # 세 문서 적재
+    for uri in uris:
+        async with maker() as s:
+            await ingest_bytes(s, emb, source_uri=uri, filename="x.md", data=b"# T\n\n## S\n\nbody")
+
+    # 삭제 전 chunks 확인
+    async with maker() as s:
+        doc_sample = await doc_repo.get_document_by_uri(s, uris[0])
+        assert doc_sample is not None
+        sample_chunk_count = await s.scalar(
+            select(func.count(Chunk.id)).where(Chunk.document_id == doc_sample.id)
+        )
+        assert sample_chunk_count and sample_chunk_count > 0
+
+    # prefix 삭제
+    async with maker() as s:
+        deleted = await doc_repo.delete_documents_by_prefix(s, "data/samples/docs")
+        await s.commit()
+
+    assert deleted == 1
+
+    # 삭제된 문서와 chunks 확인
+    async with maker() as s:
+        assert await doc_repo.get_document_by_uri(s, uris[0]) is None
+        remaining_chunks = await s.scalar(
+            select(func.count(Chunk.id)).where(Chunk.document_id == doc_sample.id)
+        )
+        assert remaining_chunks == 0
+
+    # 나머지 문서 존재 확인
+    async with maker() as s:
+        assert await doc_repo.get_document_by_uri(s, uris[1]) is not None
+        assert await doc_repo.get_document_by_uri(s, uris[2]) is not None
+
+
+def test_normalize_prefix_strips_slashes_and_whitespace() -> None:
+    assert _normalize_prefix("  data/samples/docs/  ") == "data/samples/docs"
+    assert _normalize_prefix("/data/samples/docs/") == "data/samples/docs"
+
+
+def test_normalize_prefix_rejects_empty() -> None:
+    with pytest.raises(ValueError, match="비어"):
+        _normalize_prefix("   ")
+    with pytest.raises(ValueError, match="비어"):
+        _normalize_prefix("///")
+
+
+def test_validate_prefix_rejects_overlapping_target() -> None:
+    with pytest.raises(ValueError, match="포함"):
+        _validate_prefix_vs_targets("data", ["data/docs"])
+    with pytest.raises(ValueError, match="포함"):
+        _validate_prefix_vs_targets("data/docs", ["data/docs"])
+
+
+def test_validate_prefix_allows_sibling_paths() -> None:
+    _validate_prefix_vs_targets("data/samples/docs", ["data/docs"])
