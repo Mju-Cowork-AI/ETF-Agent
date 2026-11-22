@@ -97,3 +97,29 @@ async def test_non_price_question_has_no_notice(deps: AgentDeps, monkeypatch) ->
     monkeypatch.setattr(price_lookup, "latest", no_prices)
     st = await ask(deps, "샘플 코스피200 총보수 알려줘")
     assert etf_info.NO_PRICE_NOTE not in st["answer"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["시가총액 큰 ETF 알려줘", "샘플 코스피200 시가 총액 얼마야?"],
+)
+def test_market_cap_is_not_price_question(text: str) -> None:
+    assert etf_info.asks_price(text) is False
+
+
+async def test_forecast_part_gets_refusal_not_price_notice(
+    deps: AgentDeps, fake_llm, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    async def no_prices(session, tickers):
+        return {}
+
+    monkeypatch.setattr(price_lookup, "latest", no_prices)
+    fake_llm.push(
+        "classify",
+        json.dumps({"intents": ["etf_info"], "refuse": ["high_risk"], "confidence": 0.9}),
+    )
+    st = await ask(deps, "샘플 코스피200 총보수 알려주고 주가 오를지도 알려줘")
+    assert st["refuse"] == ["high_risk"]
+    assert etf_info.NO_PRICE_NOTE not in st["answer"]
