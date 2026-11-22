@@ -1,6 +1,6 @@
 # ETF-Agent: ETF 질의응답 챗봇
 
-> **배포된 서비스(리허설, 샘플 데이터, 최종 URL은 11-28 제출 전 확정):** <https://etf-agent.pages.dev>
+> **배포된 서비스:** <https://etf-agent.pages.dev>
 >
 > API: <https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io> · 구성과 배포 절차는 [infra/azure/README.md](infra/azure/README.md)
 >
@@ -14,8 +14,8 @@
 
 코멘토 명지대 AI 2조의 팀 프로젝트입니다. 국내 ETF에 대해 물으면 **조회한 근거(ETF DB와 문서)로만** 답하고, **준법 검증을 통과한 답만** 보여 주는 챗봇입니다.
 
-- **할 수 있는 일:** ETF 상품 정보 조회(총보수·실부담비용·순자산·구성종목 등), ETF 비교, ETF 개념·용어 설명, 투자 권유·전망 요청에 대한 안전한 안내
-- **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 결과가 부족하면 한 번 더 계획하고, 답을 쓴 뒤 다른 LLM이 검증합니다. 반복 횟수와 안전 경계는 코드가 제한합니다.
+- **할 수 있는 일:** ETF 상품 정보 조회(총보수·실부담비용·순자산·분배주기 등), ETF 비교, ETF 개념·용어 설명, 투자 권유·전망 요청에 대한 안전한 안내
+- **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 답을 쓴 뒤 다른 LLM이 검증합니다. 결과가 부족할 때 한 번 더 계획하는 재계획은 11-24에 반영할 예정입니다. 반복 횟수와 안전 경계는 코드가 제한합니다.
 - **설계 원칙:** LLM은 숫자를 만들지 않습니다. 수치는 DB에서만 가져오고, 기준일과 투자 고지는 코드가 붙입니다.
 - **기술 스택:** Python, FastAPI, LangGraph, Postgres(pgvector), React, Docker, Azure OpenAI
 - **배포:** API는 **Azure Container Apps**(최소 복제본 1), 웹은 **Cloudflare Pages**, DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
@@ -25,10 +25,10 @@
 
 | 역할 | 이름 | 맡은 일 |
 |---|---|---|
-| AI Solutions Architect | | 아키텍처·재계획 루프 설계, 외부 호출 전 개인정보 차단, 가드레일 기준, 레드팀·정상 질문 평가셋, 일정·범위 관리, README |
-| AI Engineer | | 에이전트 그래프(계획·재계획·합성·검증), 숫자 대조, 프롬프트, Azure 모델 연결, 평가 실행 운영 |
-| Cloud Engineer | | 저장소 관리, 배포·시크릿, 하루 질문 상한, 예산 알림·사용량 모니터링, 평가 실행 환경(배포 URL·키) 지원, 사용자 테스트 진행 |
-| Data Scientist | | ETF 데이터 수집·검증·적재, 문서 검색(RAG) 색인·튜닝, 일반 평가셋 정답값 |
+| AI Solutions Architect | 조은서 | 아키텍처·재계획 루프 설계, 외부 호출 전 개인정보 차단, 가드레일 기준, 레드팀·정상 질문 평가셋, 일정·범위 관리, README |
+| AI Engineer | 유세린 | 에이전트 그래프(계획·재계획·합성·검증), 숫자 대조, 프롬프트, Azure 모델 연결, 평가 실행 운영 |
+| Cloud Engineer | 이성은 | 저장소 관리, 배포·시크릿, 하루 질문 상한, 예산 알림·사용량 모니터링, 평가 실행 환경(배포 URL·키) 지원, 사용자 테스트 진행 |
+| Data Scientist | 이윤서 | ETF 데이터 조사·검증·적재(출처·기준일을 적은 CSV), 개념 문서 정리·색인, 일반 평가셋 정답값 DB 대조 |
 
 역할별 상세는 [docs/roles.md](docs/roles.md)에 있습니다.
 
@@ -118,7 +118,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 
 ### 현재 범위와 배포
 
-로컬 실행이 중심인 MVP입니다. 배포는 API는 Azure Container Apps(최소 복제본 1), 웹은 Cloudflare Pages, DB는 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 공개 URL은 로그인 없는 접근(`ANON_ACCESS_ENABLED=true`, `VITE_AUTH_MODE=anonymous`, `ADMIN_AUTH=token`)으로 엽니다. 하루 질문 수 상한(`DAILY_QUESTION_LIMIT`, D13)은 서비스 전체 하루 질문 수로 셉니다. 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
+배포 주소에서 바로 써 볼 수 있고, 로컬에서도 실행할 수 있습니다. 배포는 API는 Azure Container Apps(최소 복제본 1), 웹은 Cloudflare Pages, DB는 Azure Database for PostgreSQL flexible server(B1ms)에 둡니다([docs/decisions.md](docs/decisions.md) D9). 공개 URL은 로그인 없는 접근(`ANON_ACCESS_ENABLED=true`, `VITE_AUTH_MODE=anonymous`, `ADMIN_AUTH=token`)으로 엽니다. 하루 질문 수 상한(`DAILY_QUESTION_LIMIT`, D13)은 서비스 전체 하루 질문 수로 셉니다. 실제 로그인 수단 및 Supabase/Entra 인증, Supabase·Azure Blob 저장소, Cloudflare Access, Langfuse 어댑터는 아직 구현이 필요합니다. 구현 전인 인증·저장소를 고르면 해당 요청이 501로 응답하고, Langfuse 트레이서를 고르면 API가 기동하지 않습니다. 자세한 구성은 [Azure 안내](infra/azure/README.md)를 참고하세요.
 
 가드의 검증 모델을 호출하지 못하거나 판정 결과를 두 번 연속 해석하지 못하면 답변을 내보내지 않고 안전 답변으로 대체합니다. 캐시는 프로세스별 메모리에 있으므로 별도 프로세스의 데이터 적재나 다른 API 인스턴스에 캐시 삭제가 전파되지 않습니다. 로컬에서는 `make restart`로 해결하고, API 인스턴스를 여러 개 띄우는 배포에서는 공유 캐시(Redis 등)가 필요합니다.
 
@@ -137,10 +137,10 @@ make down                        # 컨테이너 종료, 볼륨 유지
 |---|---|
 | `apps/api/` | FastAPI 서버: 에이전트, LLM 호출 모듈(`app/llm`), 문서 검색, 저장소, 마이그레이션, 테스트 |
 | `apps/web/` | React 채팅·운영 화면 |
-| `jobs/` | 샘플 시드, 문서 적재, 외부 데이터 수집 |
+| `jobs/` | 샘플 시드, 실데이터 적재, 문서 적재 |
 | `ml/` | 오프라인 평가(`make eval`) |
 | `prompts/` | 시스템 프롬프트, 가드 규칙, 답변 템플릿 |
-| `data/` | 샘플 데이터와 평가 데이터셋 (`data/raw/` 원본은 커밋 안 함) |
+| `data/` | 실데이터 CSV, 개념 문서, 샘플 데이터(테스트용), 평가 데이터셋 (`data/raw/` 원본은 커밋 안 함) |
 | `infra/` | 로컬 Docker와 배포 설정 예시 |
 | `scripts/` | 실행 스크립트, 개발 환경 준비, 키 등록 |
 | `docs/` | 문서 |
