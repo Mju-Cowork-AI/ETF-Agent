@@ -6,10 +6,6 @@
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
-<!-- 스크린샷: 배포 후 docs/images/에 넣고 아래 주석을 풉니다 -->
-<!-- ![서비스 화면](docs/images/screenshot_main.png) -->
-<!-- ![검증 과정 보기](docs/images/screenshot_guard.png) -->
-
 ## 서비스 개요
 
 코멘토 명지대 AI 2조의 팀 프로젝트입니다. 국내 ETF에 대해 물으면 **조회한 근거(ETF DB와 문서)로만** 답하고, **준법 검증을 통과한 답만** 보여 주는 챗봇입니다.
@@ -18,6 +14,7 @@
 - **에이전트 구조:** LLM이 질문을 보고 어떤 도구(ETF DB 조회, 문서 검색)를 쓸지 계획합니다. 답을 쓴 뒤 다른 LLM이 검증합니다. 수집 결과가 부족하면(조건 검색 0건, 필요한 항목 없음) 부족한 이유를 보고 한 번 더 계획합니다(재계획, 최대 1회). 반복 횟수와 안전 경계는 코드가 제한합니다.
 - **설계 원칙:** LLM은 숫자를 만들지 않습니다. 수치는 DB에서만 가져오고, 기준일과 투자 고지는 코드가 붙입니다.
 - **기술 스택:** Python, FastAPI, LangGraph, Postgres(pgvector), React, Docker, Azure OpenAI
+- **모델:** 배포에서는 생성 `gpt-6-sol`, 계획·검증 `gpt-6-luna`(Azure OpenAI)를 씁니다([docs/decisions.md](docs/decisions.md) D2·모델 배치)
 - **배포:** API는 **Azure Container Apps**(최소 복제본 1), 웹은 **Cloudflare Pages**, DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
 - **배경:** LLM 기반 ETF 질의응답 챗봇 구축 RFP를 바탕으로 합니다. 자세한 기획은 [docs/plan.md](docs/plan.md)에 있습니다.
 
@@ -25,10 +22,10 @@
 
 | 역할 | 이름 | 맡은 일 |
 |---|---|---|
-| AI Solutions Architect | 조은서 | 아키텍처·재계획 루프 설계, 외부 호출 전 개인정보 차단, 가드레일 기준, 레드팀·정상 질문 평가셋, 일정·범위 관리, README |
+| AI Solutions Architect | 조은서 | 아키텍처·재계획 루프 설계, 외부 호출 전 개인정보 차단, 가드레일 기준, 레드팀·정상 질문 평가셋, 평가 1차 채점, 일정·범위 관리, README |
 | AI Engineer | 유세린 | 에이전트 그래프(계획·재계획·합성·검증), 숫자 대조, 프롬프트, Azure 모델 연결, 평가 실행 운영 |
 | Cloud Engineer | 이성은 | 저장소 관리, 배포·시크릿, 하루 질문 상한, 예산 알림·사용량 모니터링, 평가 실행 환경(배포 URL·키) 지원, 사용자 테스트 진행 |
-| Data Scientist | 이윤서 | ETF 데이터 조사·검증·적재(출처·기준일을 적은 CSV), 개념 문서 정리·색인, 일반 평가셋 정답값 DB 대조 |
+| Data Scientist | 이윤서 | ETF 데이터 조사·검증·적재(출처·기준일을 적은 CSV), 개념 문서 정리·색인, 일반 평가셋 정답값 DB 대조, 평가 수치 대조 확인 |
 
 역할별 상세는 [docs/roles.md](docs/roles.md)에 있습니다.
 
@@ -45,6 +42,8 @@ Docker와 Compose v2.24 이상이 필요합니다. 테스트·린트에는 [uv](
 ```
 
 스크립트가 `.env`를 준비하고 DB·API·웹을 실행한 뒤 마이그레이션, 샘플 데이터 및 문서 적재를 수행합니다. fake 모델의 답변은 실제 모델의 품질을 나타내지 않습니다.
+
+실제 ETF 5개 데이터로 보려면 띄운 뒤 `make load-real`(샘플 삭제 후 실데이터 적재)과 `make restart`를 실행합니다.
 
 - 웹: <http://localhost:5173> — 이메일로 개발용 로그인
 - API 문서: <http://localhost:8000/docs>
@@ -63,7 +62,7 @@ cp .env.local.example .env.local
 
 기본 모델은 `gpt-5.4-nano`, 임베딩은 `text-embedding-3-small`(1024차원)입니다. 질문과 검색된 문서 일부가 모델 제공자에게 전송됩니다. `.env.local.example`은 로컬 일반 대화 모드를 켭니다. 끄려면 `.env.local`에서 `GENERAL_CHAT_ENABLED=false`로 설정하세요.
 
-설정 변경 후 `./scripts/run-local.sh`를 다시 실행합니다. 로그는 `./scripts/run-local.sh logs`, 종료는 `./scripts/run-local.sh down`으로 확인하거나 실행할 수 있습니다. fake와 실제 임베딩을 전환할 때는 해당 실행 스크립트로 문서를 다시 적재하세요. 스크립트는 샘플 문서만 다시 임베딩하므로 운영 화면에서 올린 문서는 다시 업로드해야 합니다.
+설정 변경 후 `./scripts/run-local.sh`를 다시 실행합니다. 로그는 `./scripts/run-local.sh logs`, 종료는 `./scripts/run-local.sh down`으로 확인하거나 실행할 수 있습니다. fake와 실제 임베딩을 전환할 때는 해당 실행 스크립트로 문서를 다시 적재하세요. 스크립트는 개념 문서(`data/docs/`)만 다시 임베딩하므로 운영 화면에서 올린 문서는 다시 업로드해야 합니다.
 
 ### 자주 쓰는 명령
 
@@ -71,6 +70,8 @@ cp .env.local.example .env.local
 make setup                       # 호스트 테스트·린트 의존성 설치
 make test                        # API 테스트 (실행 중인 DB 필요)
 make lint                        # Ruff, ESLint, Prettier, TypeScript 검사
+make check                       # CI와 같은 검사(lint + test). PR 전에 실행
+make load-real                   # 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개)
 make demo PROVIDER=fake          # 예제 질문 실행
 make eval PROVIDER=fake          # 평가 리포트
 make restart                     # API 재시작 (데이터 갱신 후 캐시 비우기)
@@ -80,7 +81,7 @@ make down                        # 컨테이너 종료, 볼륨 유지
 
 테스트는 `TEST_DATABASE_URL` 또는 `POSTGRES_*`로 지정한 서버에 별도의 `_test` DB를 만들며, **같은 이름의 기존 테스트 DB를 삭제하고 다시 생성합니다**. 실행 전에 대상 서버를 확인하세요.
 
-직접 스택을 관리할 때는 `make up`, `make migrate`, `make seed`, `make ingest`를 사용합니다. `make ingest ARGS="data/docs --force"`는 문서를 강제로 재적재합니다. `--delete-prefix`로 적재 전에 기존 문서를 삭제할 수 있습니다(예: `make ingest ARGS="data/docs --delete-prefix data/samples/docs"`). 경로는 레포 루트 기준 상대 경로(컨테이너 안에서는 `/workspace` 아래)로 주며, 없는 경로면 오류로 끝납니다. `make help`에서 전체 명령을 볼 수 있습니다.
+직접 스택을 관리할 때는 `make up`, `make migrate`, `make seed`, `make ingest`를 사용합니다. `make seed`는 샘플 ETF 마스터와 시세만 넣고 샘플 공시는 넣지 않습니다(D5). `make ingest ARGS="data/docs --force"`는 문서를 강제로 재적재합니다. `--delete-prefix`로 적재 전에 기존 문서를 삭제할 수 있습니다(예: `make ingest ARGS="data/docs --delete-prefix data/samples/docs"`). 경로는 레포 루트 기준 상대 경로(컨테이너 안에서는 `/workspace` 아래)로 주며, 없는 경로면 오류로 끝납니다. `make help`에서 전체 명령을 볼 수 있습니다.
 
 > **데이터를 갱신한 뒤에는 `make restart`로 API를 재시작하세요.** `make seed`, `make ingest`는 API와 다른 프로세스에서 실행되어 API의 메모리 캐시를 비우지 못합니다. 재시작하지 않으면 이전 FAQ 답변·시세는 최대 1시간, ETF 정보는 최대 1일 동안 그대로 나올 수 있습니다. 실행 스크립트(`run-fake.sh`, `run-local.sh`)로 처음 띄울 때와 운영 화면에서 문서를 업로드할 때는 필요 없습니다.
 
