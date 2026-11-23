@@ -74,6 +74,7 @@ make check                       # CI와 같은 검사(lint + test). PR 전에 �
 make load-real                   # 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개)
 make demo PROVIDER=fake          # 예제 질문 실행
 make eval PROVIDER=fake          # 평가 리포트
+make check-answers               # 일반 평가셋 정답값 DB 대조
 make restart                     # API 재시작 (데이터 갱신 후 캐시 비우기)
 make logs                        # API 로그
 make down                        # 컨테이너 종료, 볼륨 유지

@@ -44,6 +44,7 @@ scripts/setup-dev.sh
 | `make fmt` | ruff 자동 수정 + 포맷, prettier 포맷 |
 | `make test` | API 테스트(`apps/api/tests`). 가짜 모델로 실행하며 DB 컨테이너가 떠 있어야 함 |
 | `make up PROVIDER=fake` | DB·API·웹 컨테이너 실행 |
+| `make check-answers` | 일반 평가셋 정답값을 DB(EtfMaster)와 대조 |
 | `make down` | 컨테이너 종료(데이터 볼륨 유지) |
 
 `make test`는 `_test`로 끝나는 테스트 DB를 지우고 다시 만듭니다. `make help`로 전체 명령을 봅니다.
