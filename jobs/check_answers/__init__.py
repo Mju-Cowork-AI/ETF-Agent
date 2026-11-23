@@ -214,6 +214,10 @@ def _text_match(
         return False
     if expected in db_value or db_value in expected:
         return True
+    # DB 값을 괄호·구분자로 나눈 조각(2글자 이상)이 정답에 하나라도 있으면 일치
+    tokens = re.split(r"[()·,\s]+", db_value)
+    if any(len(t) >= 2 and t in expected for t in tokens):
+        return True
     skip = set(etf_names)
     remaining = [
         kw for kw in keywords if kw not in skip and kw not in item_name and item_name not in kw

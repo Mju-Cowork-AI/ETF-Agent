@@ -266,6 +266,36 @@ def test_distribution_cycle_keyword_match():
     assert text_results[0].match is True
 
 
+def test_distribution_cycle_token_match_sentence_answer():
+    """gen17 모양: 정답이 문장이고 키워드는 ETF 이름뿐. DB 조각 '매월'이 정답에 포함 → 일치."""
+    etf = _etf(name="TIGER 미국배당다우존스", distribution_cycle="월(매월)")
+    item = _item(
+        question="월배당 ETF 뭐가 있어?",
+        keywords=["TIGER 미국배당다우존스"],
+        answer="TIGER 미국배당다우존스(매월 분배). 나머지 4개는 분기 분배",
+        sources=[{"item": "분배주기"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    text_results = [r for r in results if r.item == "분배주기"]
+    assert text_results[0].match is True
+
+
+def test_distribution_cycle_token_mismatch():
+    """DB '분기(1·4·7·10월)', 정답 '매월 분배' → 조각 '분기'·'10월' 모두 정답에 없음 → 불일치."""
+    etf = _etf(name="TEST ETF", distribution_cycle="분기(1·4·7·10월)")
+    item = _item(
+        question="TEST ETF 분배주기?",
+        keywords=["TEST ETF"],
+        answer="매월 분배",
+        sources=[{"item": "분배주기"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    text_results = [r for r in results if r.item == "분배주기"]
+    assert text_results[0].match is False
+
+
 # ---- 대조 대상 없음 (개념·추천·범위 밖) ----
 
 
