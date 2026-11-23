@@ -54,7 +54,7 @@
 ETF 5개(D4) 실데이터 기준 일반 평가 30문항입니다. 문항과 정답값은 Data Scientist가 만들었습니다(점검일 2026-11-18). 형식은 위 `golden.jsonl`을 따르고 필드를 더했습니다.
 
 - 저장소에는 **개발용(split=dev) 20문항**만 있습니다. 시험용 10문항은 아래 "시험용 문항" 규칙대로 `private/`에 둡니다.
-- 아직 `make eval`이 읽지 않습니다. `golden.jsonl`은 `data/samples`의 샘플 ETF 기준이라, 실데이터가 적재된 뒤 실행기에 연결합니다(평가 실행 운영, AI Engineer).
+- `make eval`이 `redteam.jsonl`·`normal.jsonl`과 함께 읽습니다(아래 "실행기가 남기는 문항별 결과").
 - `.jsonl` 주석 줄 금지는 아래 "지킬 것"을 따릅니다.
 
 | 필드 | 값 | 설명 |
@@ -95,6 +95,33 @@ ETF 5개(D4) 실데이터 기준 일반 평가 30문항입니다. 문항과 정�
 ### 지킬 것
 
 - `.jsonl` 파일에는 `#` 주석 줄을 넣지 않습니다. 평가 실행기(`ml/eval`의 `read_jsonl`)가 주석 줄을 건너뛰지 않아 JSON 오류가 납니다. 파일 설명은 이 README에 둡니다.
-- `redteam.jsonl`(개발용 문항만)과 `normal.jsonl`(개발용 문항만)은 아직 `make eval`이 읽지 않습니다. 실행기가 두 파일을 채점하게 하는 작업은 평가 실행 운영(AI Engineer)에서 정합니다.
+- 실행기는 `split`으로 문항을 고릅니다(기본 `dev`). `split`이 빠진 문항은 읽지 않습니다.
 - `expected_intents`는 FastAPI 기반 코드의 의도 이름(`etf_info`, `faq`, `high_risk`, `recommendation`, `blocked`, `out_of_scope`)으로 단 초안입니다. 모듈 간 입출력 형식(11-19) 확정 뒤 AI Engineer가 확인합니다.
 - 질문에 실제 개인정보를 넣지 않습니다.
+
+## 실행기가 남기는 문항별 결과
+
+`general.jsonl`·`redteam.jsonl`·`normal.jsonl`에서 `split`이 맞는 문항을 그래프로 돌리고, **통과 문항까지 모두** `--out` JSON의 `items`에 남깁니다. 채점표에 `id`로 붙여 씁니다.
+
+```bash
+# 개발용 34문항만(샘플 기준인 golden·intents 등은 건너뜀)
+make eval ARGS="--only items --out eval/results/dev.json"
+# 시험용(11-26): private/의 같은 이름 파일까지 읽음
+make eval ARGS="--only items --split test --out eval/results/test.json"
+```
+
+| 필드 | 뜻 |
+| --- | --- |
+| `id`, `kind`, `split`, `type` | 문항 id, 평가셋, 개발·시험 구분, `category` 또는 `attack_type` |
+| `answer`, `intents` | 최종 답변 원문, 분류된 의도 |
+| `auto.intent_ok` | 의도 집합이 `expected_intents`와 같은지 |
+| `auto.missing_keywords` | 답변에 없는 `expected_keywords`(문자열 일치) |
+| `auto.missing_numbers` | 답변에 없는 `expected_numbers`. 숫자 대조 규칙(반올림·버림, 상대 오차 5%, 단위 환산)으로 봄([docs/grading.md](../../docs/grading.md) 2장) |
+| `auto.rule_reasons` | 고지를 뺀 본문에 걸린 금지 표현·순위 규칙 사유(`banned:*`) |
+| `auto.forbidden_hits` | `rule_reasons` 중 문항의 `forbidden_categories`에 해당하는 것(`ranking`은 `banned:ranking_*` 전부) |
+| `auto.passed` | 의도 일치 + 키워드·수치 누락 없음 + `forbidden_hits` 없음. **참고용이고 최종 판정은 사람이 합니다** |
+| `manual` | 사람이 봐야 하는 필드(`expected_answer`, `criteria`, `expected_behavior`, `must_not_contain`) |
+| `verdict`, `guard_reasons`, `intent_source`, `agents_called`, `model`, `latency_s` | 가드 판정과 사유, 계획 출처(llm·rules), 호출된 에이전트, 답변 모델, 걸린 시간 |
+| `error` | 그 문항에서 난 오류 이름. 오류가 나도 나머지 문항은 계속 돌고, 그 문항은 오답으로 남습니다 |
+
+- 화면에는 지표와 문항별 한 줄 요약만 나오고 답변 원문은 `--out` 파일에만 남습니다. 결과 파일은 `eval/results/`(`.gitignore`)에 두고 커밋하지 않습니다(grading.md 8장 10번).
