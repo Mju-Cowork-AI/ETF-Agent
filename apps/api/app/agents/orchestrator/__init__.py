@@ -107,6 +107,13 @@ class Plan:
                 codes += [c for c in t["args"].get("etf_codes", []) if c not in codes]
         return codes
 
+    def metrics(self) -> list[str]:
+        out: list[str] = []
+        for t in self.tools:
+            if t["name"] == "etf_info":
+                out += [m for m in t["args"].get("metrics", []) if m not in out]
+        return out
+
     def conditions(self) -> dict[str, Any]:
         for t in self.tools:
             if t["name"] == "etf_search":
@@ -287,3 +294,69 @@ async def classify(
     """(의도 목록, 출처 'llm'|'rules'). 계획 JSON의 의도만 쓰는 예전 인터페이스."""
     p = await plan(llm, text, has_entity=has_entity, history_hint=history_hint)
     return p.intents, p.source
+
+
+# ---------- 재계획(docs/replan_spec.md, 최대 1회) ----------
+REPLAN_HINT = (
+    '[지시] 이미 모은 결과는 유지된다. 부족한 부분을 채울 "추가" 도구와 인자만 같은 JSON 형식으로 내라. '
+    "intents는 1차와 같게 둔다. 더 수집할 방법이 없으면 tools를 빈 배열로 내라. "
+    "사용자의 조건(보수 상한·하한, 지역 등)을 바꾸거나 완화하지 마라. 이전과 같은 도구·인자를 다시 내지 마라."
+)
+
+
+def same_tool(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    return a.get("name") == b.get("name") and a.get("args", {}) == b.get("args", {})
+
+
+async def replan(
+    llm: LLMClient,
+    text: str,
+    *,
+    prev_tools: list[dict[str, Any]],
+    prev_intents: list[str],
+    collected: str,
+    sufficiency: dict[str, Any],
+    indexes: list[str],
+    model: str | None = None,
+) -> list[dict[str, Any]] | None:
+    """부족 사유를 보고 추가 도구만 다시 계획한다. 형식이 두 번 틀리면 None(재계획 없이 진행).
+
+    수집 값 자체는 보내지 않고 있음/없음만 요약한다(숫자 생성 여지 차단). 1차와 같은 도구·인자는 뺀다.
+    """
+    prev = json.dumps({"intents": prev_intents, "tools": prev_tools}, ensure_ascii=False)
+    user = "\n".join(
+        [
+            f"질문: {text}",
+            f"[이전 계획] {prev}",
+            f"[수집 결과 요약] {collected}",
+            f"[부족 사유] {json.dumps(sufficiency, ensure_ascii=False)}",
+            f"[DB 기초지수 이름] {', '.join(indexes)}",
+            REPLAN_HINT,
+        ]
+    )
+    messages = [ChatMessage("system", load_text("system/classifier.md")), ChatMessage("user", user)]
+    parsed: Plan | None = None
+    try:
+        for attempt in range(2):
+            resp = await llm.complete(
+                messages,
+                task="classify",
+                model=model,
+                json_mode=True,
+                temperature=0,
+                max_tokens=PLAN_MAX_TOKENS,
+            )
+            parsed = parse_plan(resp.text)
+            if parsed is not None or attempt:
+                break
+            messages = [
+                *messages,
+                ChatMessage("assistant", resp.text[:500]),
+                ChatMessage("user", RETRY_HINT),
+            ]
+    except LLMError as e:
+        log.info("replan_llm_failed", error=type(e).__name__)
+        return None
+    if parsed is None:
+        return None
+    return [t for t in parsed.tools if not any(same_tool(t, p) for p in prev_tools)]

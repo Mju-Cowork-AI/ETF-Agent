@@ -2,7 +2,8 @@
 
 질문 → preprocess ┬→ template → END (개인정보: 외부 호출 전 차단)
                   └→ orchestrate ─┬→ etf_info ─┐  (자료 수집, LLM 없음, 동시에)
-      (의도 분류 ∥ 문서 검색 선행)  ├→ faq      ─┼→ compose → guard ─┬→ END (통과)
+      (의도 분류 ∥ 문서 검색 선행)  ├→ faq      ─┼→ sufficiency ─┬→ compose → guard ─┬→ END (통과)
+                                │             │  (부족 판정)   └→ replan → 수집 다시(최대 1회)
                                 ├→ compose (일반 대화, 로컬 전용) ├→ retry → compose (합성만 다시)
                                 └→ template → END               └→ safe → END (재생성 후 실패)
 
@@ -13,6 +14,8 @@
   LLM을 한 번만 불러 하나의 답을 쓴다.
 - 차단(해킹·불법·지침 무력화)·고위험·추천·범위 밖은 생성하지 않고 템플릿으로 답한다. # P1-AG-06 ③
   차단은 규칙에 걸리면 LLM 분류도 건너뛰고, 직전 답변이 차단이면 범위 밖 후속 질문도 차단한다.
+- 수집 뒤 코드가 부족을 판정한다(결과 0건·항목 빠짐). 부족하면 계획 모델에 사유를 보내 추가 도구만
+  받아 그 수집만 다시 한다(최대 1회, docs/replan_spec.md). 이미 모은 결과는 유지한다.
 - 가드 실패 시 합성만 1회 재생성, 다시 실패하면 안전 답변 + 문의 채널. # P1-AG-06
 - GENERAL_CHAT_ENABLED(APP_ENV=local 전용)면 범위 밖 질문은 템플릿 대신 compose가 일반 대화로 답한다.
   ETF·투자와 무관한 추천·시점 질문('저녁 메뉴 추천해줘')도 general로 보낸다.
@@ -28,11 +31,12 @@ from langgraph.graph import END, START, StateGraph
 
 from app import cache
 from app.agents import compose as composer
-from app.agents import etf_info, faq
+from app.agents import etf_info, faq, sufficiency
 from app.agents.guard import run_guard
 from app.agents.guard.judge import UNVERIFIED
 from app.agents.guard.templates import high_risk_answer, safe_answer, template_answer
 from app.agents.orchestrator import plan as make_plan
+from app.agents.orchestrator import replan as make_replan
 from app.agents.orchestrator.rules import (
     is_blocked,
     is_domain,
@@ -60,6 +64,7 @@ from app.tools import etf_search
 log = get_logger(__name__)
 
 MAX_RETRIES = 1
+MAX_REPLANS = 1  # D11: 재계획은 최대 1회
 # 자료 수집 노드(LLM 없음)
 _AGENTS = {
     "etf_info": etf_info.run,
@@ -142,6 +147,9 @@ async def orchestrate_node(state: GraphState, config: RunnableConfig) -> dict[st
         "prefetched_chunks": prefetched,
         "plan": p.summary(),
         "plan_conditions": p.conditions(),
+        "plan_tools": p.tools,
+        "plan_metrics": p.metrics(),
+        "replan_count": 0,
         # 고정 문구로 끝나는 질문에는 거절 문장을 따로 붙이지 않는다
         "refuse": p.refuse if any(i in AGENT_INTENTS for i in intents) else [],
     }
@@ -220,6 +228,69 @@ def _agent_node(name: str):
 
     node.__name__ = f"{name}_node"
     return node
+
+
+async def sufficiency_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """부족 판정(코드, LLM 0회). 재계획은 결과 0건·항목 빠짐만(범위 조정 3차)."""
+    s = sufficiency.judge(state)
+    if not s["sufficient"]:
+        log.info(
+            "insufficient",
+            request_id=state.get("request_id"),
+            reasons=[r["type"] for r in s["reasons"]],
+            replan_count=state.get("replan_count", 0),
+        )
+    return {"sufficiency": s}
+
+
+async def replan_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
+    """부족 사유를 계획 모델에 보내 추가 도구만 받는다(최대 1회). 이미 모은 결과는 그대로 둔다."""
+    deps = _deps(config)
+    await deps.emit("replan", "자료를 더 찾는 중")
+    s = state.get("sufficiency") or {}
+    catalog = {c.ticker: c for c in await load_catalog(deps.maker)}
+    indexes = sorted({c.underlying_index for c in catalog.values() if c.underlying_index})
+    tools = await make_replan(
+        deps.llm,
+        state["normalized"],
+        prev_tools=state.get("plan_tools") or [],
+        prev_intents=list(state.get("intents") or []),
+        collected=sufficiency.summarize(s),
+        sufficiency=s,
+        indexes=indexes,
+        model=deps.settings.plan_model_name,
+    )
+    update: dict[str, Any] = {
+        "replan_count": state.get("replan_count", 0) + 1,
+        "agents_called": ["replan"],
+    }
+    intents = list(state.get("intents") or [])
+    targets: list[str] = []
+    for t in tools or []:
+        args = t.get("args", {})
+        if t["name"] == "etf_search" and args.get("conditions"):
+            update["replan_conditions"] = dict(args["conditions"])
+            targets.append(Intent.ETF_INFO.value)
+        elif t["name"] == "etf_info" and (
+            picked := [c for c in args.get("etf_codes", []) if c in catalog]
+        ):
+            update["entities"] = [EtfEntity(c, catalog[c].name, "", 0.0, "replan") for c in picked]
+            targets.append(Intent.ETF_INFO.value)
+        elif t["name"] == "knowledge" and args.get("query"):
+            update["knowledge_query"] = str(args["query"])
+            update["prefetched_chunks"] = None  # 1차 질문으로 찾은 문서 대신 새 검색어로 찾는다
+            targets.append(Intent.FAQ.value)
+            if Intent.FAQ not in intents:
+                intents.append(Intent.FAQ.value)
+    update["replan_targets"] = list(dict.fromkeys(targets))
+    update["intents"] = [i.value for i in AGENT_INTENTS if i in intents]
+    log.info(
+        "replan",
+        request_id=state.get("request_id"),
+        reasons=[r["type"] for r in s.get("reasons", [])],
+        tools=[t["name"] for t in tools or []],
+    )
+    return update
 
 
 async def template_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -359,6 +430,23 @@ def route_intents(state: GraphState) -> list[str]:
     return ["compose"] if Intent.GENERAL in intents else ["template"]
 
 
+def route_sufficiency(state: GraphState) -> str:
+    """부족하고 아직 재계획하지 않았으면 재계획. 계획이 규칙으로 대체된 경우(LLM 형식 실패)는 하지 않는다."""
+    s = state.get("sufficiency") or {}
+    if (
+        s.get("sufficient", True)
+        or state.get("replan_count", 0) >= MAX_REPLANS
+        or state.get("intent_source") != "llm"
+    ):
+        return "compose"
+    return "replan"
+
+
+def route_replan(state: GraphState) -> list[str]:
+    """추가 도구가 있으면 그 수집 노드만 다시, 없으면(방법이 없음) 모은 자료로 합성."""
+    return [t for t in state.get("replan_targets") or [] if t in _AGENTS] or ["compose"]
+
+
 def route_guard(state: GraphState) -> str:
     verdict = state.get("verdict")
     if verdict in (Verdict.PASS, Verdict.PASS_AFTER_RETRY):
@@ -375,6 +463,8 @@ def build_graph():
     g.add_node("orchestrate", orchestrate_node)
     for name in _AGENTS:
         g.add_node(name, _agent_node(name))
+    g.add_node("sufficiency", sufficiency_node)
+    g.add_node("replan", replan_node)
     g.add_node("template", template_node)
     g.add_node("compose", compose_node)
     g.add_node("guard", guard_node)
@@ -388,7 +478,11 @@ def build_graph():
     agent_targets = [*_AGENTS, "compose", "template"]
     g.add_conditional_edges("orchestrate", route_intents, agent_targets)
     for name in _AGENTS:
-        g.add_edge(name, "compose")
+        g.add_edge(name, "sufficiency")
+    g.add_conditional_edges(
+        "sufficiency", route_sufficiency, {"compose": "compose", "replan": "replan"}
+    )
+    g.add_conditional_edges("replan", route_replan, [*_AGENTS, "compose"])
     g.add_edge("template", END)
     g.add_edge("compose", "guard")
     g.add_conditional_edges("guard", route_guard, {"end": END, "retry": "retry", "safe": "safe"})
