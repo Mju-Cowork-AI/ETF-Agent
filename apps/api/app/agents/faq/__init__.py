@@ -41,6 +41,8 @@ def strip_citations(text: str) -> str:
 
 def retrieval_query(state: GraphState) -> str:
     """검색용 질의. 짧거나 앞 대화를 가리키는 후속 질문이면 직전 사용자 질문을 붙인다."""
+    if kq := state.get("knowledge_query"):  # 재계획이 고른 검색어
+        return kq
     q = state["normalized"]
     prev = next(
         (

@@ -99,6 +99,11 @@ class AgentResult:
     disclaimers: list[str] = field(default_factory=list)
     cached: bool = False
     found: bool = True  # 답에 쓸 자료를 찾았는지(False면 content는 안내 문구)
+    # 부족 판정(docs/replan_spec.md)에 쓰는 신호. 값은 담지 않는다.
+    zero_results: bool = False  # 조건 검색 결과 0건(조건을 못 알아들은 경우 포함)
+    missing_fields: list[str] = field(
+        default_factory=list
+    )  # 계획한 항목 중 값이 없는 것("종목코드:항목")
     context: str = ""  # LLM 프롬프트에 넣을 자료 블록([ETF 데이터]·[공시]·[근거 N])
 
 
@@ -143,6 +148,13 @@ class GraphState(TypedDict, total=False):
     plan: dict[str, Any]  # 계획 JSON 요약(interface.md). 질문 문장·검색어는 담지 않는다
     plan_conditions: dict[str, Any]  # 계획의 검색 조건(etf_search)
     refuse: list[str]  # 섞인 질문에서 답하지 않을 부분(high_risk·recommendation·out_of_scope)
+    plan_tools: list[dict[str, Any]]  # 1차 계획의 도구(재계획에서 같은 도구·인자를 빼는 데 쓴다)
+    plan_metrics: list[str]  # 1차 계획의 etf_info 항목(부족 판정 missing_field)
+    replan_conditions: dict[str, Any]  # 재계획이 더한 검색 조건(빈 칸만 채운다)
+    knowledge_query: str | None  # 재계획이 고른 문서 검색어
+    sufficiency: dict[str, Any]  # 부족 판정 결과(interface.md 2장)
+    replan_count: int  # 재계획 횟수(상한 1)
+    replan_targets: list[str]  # 재계획 뒤 다시 부를 수집 노드
     results: Annotated[dict[str, AgentResult], merge_results]
     agents_called: Annotated[list[str], operator.add]
     attempt: int

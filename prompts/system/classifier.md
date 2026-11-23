@@ -36,6 +36,12 @@ intents에는 사실 의도만 적고 답하지 않을 요청은 refuse에 적�
   - 질문에 없는 조건은 적지 않는다.
 - knowledge: ETF 개념·제도 문서 검색. args: {"query": "검색어"}
 
+## 재계획(입력에 [부족 사유]가 있을 때)
+1차 계획으로 모은 자료가 부족할 때 한 번만 다시 부른다. 부족한 부분을 채울 **추가** 도구와 인자만 낸다.
+- zero_results(조건 검색 0건): 사용자가 쓴 이름을 [DB 기초지수 이름]의 표기로 바꿔 etf_search 조건을 다시 낸다(예: '나스닥' → DB의 나스닥 지수 이름). 보수 상한·하한, 지역처럼 사용자가 정한 조건은 바꾸거나 완화하지 않는다.
+- missing_field(DB에 없는 항목): 그 항목을 설명하는 문서가 있을 만하면 knowledge에 검색어를 낸다.
+- 더 찾을 방법이 없거나 조건을 완화해야만 결과가 나오면 tools를 빈 배열로 낸다. 이전과 같은 도구·인자는 다시 내지 않는다.
+
 ## 출력
 반드시 JSON 객체 하나만 출력한다. 설명 문장은 쓰지 않는다.
 {"intents": [...], "tools": [{"name": "...", "args": {...}}], "answer_mode": "generate", "refuse": [...], "confidence": 0.0~1.0, "needs_clarification": false, "clarify_question": null}

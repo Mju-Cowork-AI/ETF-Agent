@@ -56,10 +56,19 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
             filters = etf_search.merge_plan_conditions(
                 filters, state.get("plan_conditions") or {}, indexes
             )
+            # 재계획 조건은 빈 칸만 채운다(사용자가 말한 조건은 바꾸거나 완화하지 않는다)
+            filters = etf_search.merge_plan_conditions(
+                filters, state.get("replan_conditions") or {}, indexes
+            )
             if filters.is_empty():
+                # 계획이 조건 검색을 골랐는데 조건을 하나도 알아듣지 못했으면 '결과 0건'으로 보고 재계획한다
+                # ('나스닥 추종 ETF 목록' → DB 표기 'NASDAQ 100'). ETF 이름이 애매한 질문은 재계획하지
+                # 않고 이 안내로 끝난다(범위 조정 3차).
+                searched = any(t.get("name") == "etf_search" for t in state.get("plan_tools") or [])
                 return AgentResult(
                     agent=NAME,
                     found=False,
+                    zero_results=searched,
                     content=(
                         "질문에서 ETF 이름을 찾지 못했어요. 상품명이나 종목코드(6자리)를 알려 주시거나, "
                         "'총보수 0.1% 이하 해외 주식 ETF'처럼 조건을 말씀해 주세요."
@@ -75,6 +84,7 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
                 return AgentResult(
                     agent=NAME,
                     found=False,
+                    zero_results=True,
                     content=" ".join(
                         [f"조건({filters.describe()})에 맞는 ETF가 없습니다.", *notes]
                     ),
@@ -137,4 +147,10 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
         retrieved_ids=[f"etf:{e.ticker}" for e in etfs],
         # 샘플 상품이 하나라도 있으면 '개발용 샘플 데이터' 고지를 붙인다(실데이터만이면 안 붙음)
         disclaimers=["sample_data"] if any(e.source == "sample" for e in etfs) else [],
+        missing_fields=missing_fields(etfs, state.get("plan_metrics") or []) if tickers else [],
     )
+
+
+def missing_fields(etfs: list, metrics: list[str]) -> list[str]:
+    """계획한 항목 중 DB 값이 없는 것("종목코드:항목"). 부족 판정 missing_field에 쓴다."""
+    return [f"{e.ticker}:{m}" for e in etfs for m in metrics if getattr(e, m, None) is None]
