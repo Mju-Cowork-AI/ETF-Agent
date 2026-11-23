@@ -6,10 +6,6 @@
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
 
-<!-- 스크린샷: 배포 후 docs/images/에 넣고 아래 주석을 풉니다 -->
-<!-- ![서비스 화면](docs/images/screenshot_main.png) -->
-<!-- ![검증 과정 보기](docs/images/screenshot_guard.png) -->
-
 ## 서비스 개요
 
 코멘토 명지대 AI 2조의 팀 프로젝트입니다. 국내 ETF에 대해 물으면 **조회한 근거(ETF DB와 문서)로만** 답하고, **준법 검증을 통과한 답만** 보여 주는 챗봇입니다.
@@ -46,6 +42,8 @@ Docker와 Compose v2.24 이상이 필요합니다. 테스트·린트에는 [uv](
 
 스크립트가 `.env`를 준비하고 DB·API·웹을 실행한 뒤 마이그레이션, 샘플 데이터 및 문서 적재를 수행합니다. fake 모델의 답변은 실제 모델의 품질을 나타내지 않습니다.
 
+실제 ETF 5개 데이터로 보려면 띄운 뒤 `make load-real`(샘플 삭제 후 실데이터 적재)과 `make restart`를 실행합니다.
+
 - 웹: <http://localhost:5173> — 이메일로 개발용 로그인
 - API 문서: <http://localhost:8000/docs>
 - 운영 화면: `admin@local.test`로 로그인 후 **운영** 탭 선택
@@ -63,7 +61,7 @@ cp .env.local.example .env.local
 
 기본 모델은 `gpt-5.4-nano`, 임베딩은 `text-embedding-3-small`(1024차원)입니다. 질문과 검색된 문서 일부가 모델 제공자에게 전송됩니다. `.env.local.example`은 로컬 일반 대화 모드를 켭니다. 끄려면 `.env.local`에서 `GENERAL_CHAT_ENABLED=false`로 설정하세요.
 
-설정 변경 후 `./scripts/run-local.sh`를 다시 실행합니다. 로그는 `./scripts/run-local.sh logs`, 종료는 `./scripts/run-local.sh down`으로 확인하거나 실행할 수 있습니다. fake와 실제 임베딩을 전환할 때는 해당 실행 스크립트로 문서를 다시 적재하세요. 스크립트는 샘플 문서만 다시 임베딩하므로 운영 화면에서 올린 문서는 다시 업로드해야 합니다.
+설정 변경 후 `./scripts/run-local.sh`를 다시 실행합니다. 로그는 `./scripts/run-local.sh logs`, 종료는 `./scripts/run-local.sh down`으로 확인하거나 실행할 수 있습니다. fake와 실제 임베딩을 전환할 때는 해당 실행 스크립트로 문서를 다시 적재하세요. 스크립트는 개념 문서(`data/docs/`)만 다시 임베딩하므로 운영 화면에서 올린 문서는 다시 업로드해야 합니다.
 
 ### 자주 쓰는 명령
 
@@ -71,6 +69,8 @@ cp .env.local.example .env.local
 make setup                       # 호스트 테스트·린트 의존성 설치
 make test                        # API 테스트 (실행 중인 DB 필요)
 make lint                        # Ruff, ESLint, Prettier, TypeScript 검사
+make check                       # CI와 같은 검사(lint + test). PR 전에 실행
+make load-real                   # 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개)
 make demo PROVIDER=fake          # 예제 질문 실행
 make eval PROVIDER=fake          # 평가 리포트
 make restart                     # API 재시작 (데이터 갱신 후 캐시 비우기)
