@@ -368,6 +368,31 @@ def ungrounded_numbers(answer: str, evidence: list[str], question: str = "") -> 
     return list(dict.fromkeys(missing))
 
 
+def missing_numbers(answer: str, expected: list[str]) -> list[str]:
+    """평가용: 정답 수치·날짜(expected) 중 답변에 없는 것. 비어 있으면 모두 있음.
+
+    ungrounded_numbers와 방향만 반대이고 같은 규칙을 쓴다(채점 기준 2장, 8장 3번). 정답 값을 근거로 보고,
+    답변 수치가 그 값을 반올림·버림한 표기이며 상대 오차 rel_tolerance 이하면 있다고 본다.
+    '0.0100%' = '0.01%', '1,785억 원' = '178,500,000,000원'. 날짜는 같은 날이어야 한다.
+    """
+    cfg = _config()["numbers"]
+    tol = float(cfg.get("rel_tolerance", 0.05))
+    answer_dates = _collect_dates(_chars(answer))
+    text, _ = _check_dates(_prepare(answer), answer_dates)
+    found = _extract(text, require_unit_or_decimal=cfg.get("require_unit_or_decimal", True))
+    out: list[str] = []
+    for e in expected:
+        e_dates = _collect_dates(_chars(e))
+        if e_dates.full:
+            ok = e_dates.full <= answer_dates.full
+        else:
+            values = _evidence_values(_chars(e))
+            ok = bool(values) and all(any(_same_value(x, v, tol) for x in found) for v in values)
+        if not ok and e not in answer:
+            out.append(e)
+    return out
+
+
 def check_rules(
     body: str,
     *,
