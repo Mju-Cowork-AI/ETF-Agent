@@ -79,6 +79,10 @@ ingest: check-env ## 개념 문서 청킹·임베딩 적재(P1-DA-03). make inge
 load-real: check-env ## 실데이터 CSV 검증·적재(샘플 삭제 후 ETF 5개 upsert)
 	$(API_EXEC) python -m jobs.load_real $(ARGS)
 
+.PHONY: check-answers
+check-answers: check-env ## 일반 평가셋 정답값을 DB(EtfMaster)와 대조
+	$(API_EXEC) python -m jobs.check_answers $(ARGS)
+
 # ---------- 품질 ----------
 .PHONY: test
 test: ## API 테스트(LLM_PROVIDER=fake, db 컨테이너 필요: make up)
