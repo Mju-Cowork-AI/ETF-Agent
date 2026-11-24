@@ -2,6 +2,8 @@
 
 > **배포된 서비스:** <https://etf-agent.pages.dev>
 >
+> 처음 보신다면: RFP 대비 구현 범위와 핵심 결정 5개 → [docs/rfp_scope.md](docs/rfp_scope.md)
+>
 > API: <https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io> · 구성과 배포 절차는 [infra/azure/README.md](infra/azure/README.md)
 >
 > AI가 생성한 답변이며 투자 조언이 아닙니다. 수치는 기준일 데이터입니다.
