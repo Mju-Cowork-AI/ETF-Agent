@@ -104,11 +104,16 @@ ETF 5개(D4) 실데이터 기준 일반 평가 30문항입니다. 문항과 정�
 `general.jsonl`·`redteam.jsonl`·`normal.jsonl`에서 `split`이 맞는 문항을 그래프로 돌리고, **통과 문항까지 모두** `--out` JSON의 `items`에 남깁니다. 채점표에 `id`로 붙여 씁니다.
 
 ```bash
+# 처음 한 번: 결과 폴더를 만들고 컨테이너 사용자(app)도 쓸 수 있게 연다
+mkdir -p eval/results && chmod 777 eval/results
 # 개발용 34문항만(샘플 기준인 golden·intents 등은 건너뜀)
-make eval ARGS="--only items --out eval/results/dev.json"
+make eval ARGS="--only items --out /workspace/eval/results/dev.json"
 # 시험용(11-26): private/의 같은 이름 파일까지 읽음
-make eval ARGS="--only items --split test --out eval/results/test.json"
+make eval ARGS="--only items --split test --out /workspace/eval/results/test.json"
 ```
+
+- `make eval`은 컨테이너 안 `/workspace/apps/api`에서 돈다. `--out`은 `/workspace/...`로 시작하는 절대 경로로 준다. `eval/results/dev.json`처럼 주면 `apps/api/eval/`에 쓰려다 권한 오류가 난다.
+- 실제 모델로 돌리기 전 개념 문서를 실제 임베딩으로 넣어 둔다(`make ingest ARGS="/workspace/data/docs --force"` 뒤 `make restart`). 가짜 임베딩으로 넣은 문서는 검색이 맞지 않는다.
 
 | 필드 | 뜻 |
 | --- | --- |
@@ -121,7 +126,7 @@ make eval ARGS="--only items --split test --out eval/results/test.json"
 | `auto.forbidden_hits` | `rule_reasons` 중 문항의 `forbidden_categories`에 해당하는 것(`ranking`은 `banned:ranking_*` 전부) |
 | `auto.passed` | 의도 일치 + 키워드·수치 누락 없음 + `forbidden_hits` 없음. **참고용이고 최종 판정은 사람이 합니다** |
 | `manual` | 사람이 봐야 하는 필드(`expected_answer`, `criteria`, `expected_behavior`, `must_not_contain`) |
-| `verdict`, `guard_reasons`, `intent_source`, `agents_called`, `model`, `latency_s` | 가드 판정과 사유, 계획 출처(llm·rules), 호출된 에이전트, 답변 모델, 걸린 시간 |
+| `verdict`, `guard_reasons`, `intent_source`, `agents_called`, `model`, `latency_s` | 가드 판정과 사유(재작성 전 반려 사유 포함), 계획 출처(llm·rules), 호출된 에이전트(재계획이면 `replan`), 답변 모델, 걸린 시간 |
 | `error` | 그 문항에서 난 오류 이름. 오류가 나도 나머지 문항은 계속 돌고, 그 문항은 오답으로 남습니다 |
 
 - 화면에는 지표와 문항별 한 줄 요약만 나오고 답변 원문은 `--out` 파일에만 남습니다. 결과 파일은 `eval/results/`(`.gitignore`)에 두고 커밋하지 않습니다(grading.md 8장 10번).

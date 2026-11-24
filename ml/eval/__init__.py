@@ -251,7 +251,9 @@ async def eval_items(
                     "intent_source": st.get("intent_source"),
                     "agents_called": st.get("agents_called", []),
                     "verdict": st.get("verdict"),
-                    "guard_reasons": list(getattr(guard, "reasons", []) or []),
+                    # 재작성·안전 답변으로 끝나면 최종 guard에는 사유가 없어서, 반려 이력을 함께 남긴다
+                    "guard_reasons": [r for rs in st.get("guard_history") or [] for r in rs]
+                    or list(getattr(guard, "reasons", []) or []),
                     "model": st.get("model"),
                     "auto": judge_item(r, st),
                 }
