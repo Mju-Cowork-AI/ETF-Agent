@@ -30,6 +30,7 @@ def _etf(**kw: object) -> SimpleNamespace:
         "actual_expense_ratio": None,
         "actual_expense_as_of": None,
         "distribution_cycle": None,
+        "currency_hedged": None,
         "listed_date": None,
         "net_assets_as_of": None,
     }
@@ -373,3 +374,178 @@ def test_guess_fee_column():
     assert results is not None
     assert results[0].match is True
     assert "추정" in results[0].item
+
+
+# ---- 총보수 + 실부담비용 동시 (문제 1) ----
+
+
+def test_dual_fee_items_both_match():
+    """한 문항에 총보수와 실부담비용이 같이 있고 항목 낱말로 구분 가능 → 둘 다 일치."""
+    etf = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    item = _item(
+        question="TIGER 미국나스닥100 총보수와 실부담비용 얼마야?",
+        keywords=["TIGER 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0068%", "0.1430%"],
+        answer="총보수 0.0068%, 실부담비용 0.1430%",
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    num_results = [r for r in results if r.item in ("총보수", "실부담비용")]
+    assert len(num_results) == 2
+    assert all(r.match for r in num_results)
+    items_used = {r.item for r in num_results}
+    assert items_used == {"총보수", "실부담비용"}
+
+
+def test_dual_fee_items_one_mismatch():
+    """실부담비용 숫자만 틀리면 그것만 불일치."""
+    etf = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    item = _item(
+        question="TIGER 미국나스닥100 총보수와 실부담비용 얼마야?",
+        keywords=["TIGER 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0068%", "0.9999%"],
+        answer="총보수 0.0068%, 실부담비용 0.9999%",
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    num_results = [r for r in results if r.item in ("총보수", "실부담비용")]
+    matched = [r for r in num_results if r.match]
+    mismatched = [r for r in num_results if not r.match]
+    assert len(matched) == 1
+    assert matched[0].item == "총보수"
+    assert len(mismatched) == 1
+    assert mismatched[0].item == "실부담비용"
+
+
+def test_dual_fee_items_guess_by_db():
+    """expected_answer 에 항목 낱말이 없으면 DB 값으로 추정, '(추정)' 표시."""
+    etf = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    item = _item(
+        question="TIGER 미국나스닥100 보수 정보 알려줘",
+        keywords=["TIGER 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0068%", "0.1430%"],
+        answer="연 0.0068%, 0.1430%",  # 항목 낱말 없음
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    num_results = [r for r in results if "총보수" in r.item or "실부담비용" in r.item]
+    assert len(num_results) == 2
+    assert all(r.match for r in num_results)
+    assert any("추정" in r.item for r in num_results)
+
+
+# ---- ETF 여러 개 x 항목 둘 (추가 1) ----
+
+
+def test_multi_etf_dual_fee_all_match():
+    """ETF 2개 x (총보수, 실부담비용) 숫자 4개 모두 일치."""
+    etf_a = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    etf_b = _etf(
+        name="ACE 미국나스닥100",
+        total_expense_ratio=Decimal("0.0099"),
+        actual_expense_ratio=Decimal("0.1308"),
+    )
+    item = _item(
+        question="TIGER 미국나스닥100이랑 ACE 미국나스닥100 총보수·실부담비용 비교해줘",
+        keywords=["TIGER 미국나스닥100", "ACE 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0068%", "0.1430%", "0.0099%", "0.1308%"],
+        answer=(
+            "TIGER 미국나스닥100: 총보수 0.0068%, 실부담비용 0.1430%. "
+            "ACE 미국나스닥100: 총보수 0.0099%, 실부담비용 0.1308%"
+        ),
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf_a, etf_b])
+    assert results is not None
+    num_results = [r for r in results if r.item in ("총보수", "실부담비용")]
+    assert len(num_results) == 4
+    assert all(r.match for r in num_results)
+
+
+def test_multi_etf_dual_fee_one_mismatch():
+    """ETF 2개 x 항목 둘, 그중 하나만 틀림."""
+    etf_a = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    etf_b = _etf(
+        name="ACE 미국나스닥100",
+        total_expense_ratio=Decimal("0.0099"),
+        actual_expense_ratio=Decimal("0.1308"),
+    )
+    item = _item(
+        question="TIGER 미국나스닥100이랑 ACE 미국나스닥100 총보수·실부담비용 비교해줘",
+        keywords=["TIGER 미국나스닥100", "ACE 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0068%", "0.1430%", "0.0099%", "0.5555%"],
+        answer=(
+            "TIGER 미국나스닥100: 총보수 0.0068%, 실부담비용 0.1430%. "
+            "ACE 미국나스닥100: 총보수 0.0099%, 실부담비용 0.5555%"
+        ),
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf_a, etf_b])
+    assert results is not None
+    num_results = [r for r in results if r.item in ("총보수", "실부담비용")]
+    matched = [r for r in num_results if r.match]
+    mismatched = [r for r in num_results if not r.match]
+    assert len(matched) == 3
+    assert len(mismatched) == 1
+    assert mismatched[0].item == "실부담비용"
+
+
+# ---- 환헤지 (문제 2) ----
+
+
+def test_currency_hedged_match():
+    """환헤지 문항이 일치로 나오는 것."""
+    etf = _etf(name="TIGER 미국나스닥100", currency_hedged="환노출")
+    item = _item(
+        question="TIGER 미국나스닥100 환헤지 여부가 어떻게 돼?",
+        keywords=["TIGER 미국나스닥100", "환헤지"],
+        answer="환노출",
+        sources=[{"item": "환헤지"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    hedge_results = [r for r in results if r.item == "환헤지"]
+    assert len(hedge_results) == 1
+    assert hedge_results[0].match is True
+
+
+# ---- sources.item 부분 문자열 인식 (추가 2) ----
+
+
+def test_partial_item_name_in_sources():
+    """sources 의 item 이 '환헤지 여부'일 때 '환헤지'로 인식."""
+    etf = _etf(name="TIGER 미국나스닥100", currency_hedged="환노출")
+    item = _item(
+        question="TIGER 미국나스닥100 환헤지 여부가 어떻게 돼?",
+        keywords=["TIGER 미국나스닥100"],
+        answer="환노출",
+        sources=[{"item": "환헤지 여부"}],
+    )
+    results = build_checks(item, [etf])
+    assert results is not None
+    hedge_results = [r for r in results if r.item == "환헤지"]
+    assert len(hedge_results) == 1
+    assert hedge_results[0].match is True
