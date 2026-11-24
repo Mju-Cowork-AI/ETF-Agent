@@ -87,6 +87,18 @@ npx wrangler pages deploy dist --project-name etf-agent --branch main
 - 1)~4)를 모두 실행해 확인했다(3)의 `az containerapp update --image`는 11-22에 처음 실행했다).
 - 작업의 실행 명령(인자)이 바뀌면 `az containerapp job update`에 `--args "<명령 전체>"`를 함께 준다(11-22에 문서 적재 경로를 바꿀 때 썼다).
 
+### 자동 배포 (main에 올라갈 때)
+
+`dev` → `main` 릴리스 PR이 머지되면 [`deploy.yml`](../../.github/workflows/deploy.yml)이 위 절차의 1)·3)·4)를 순서대로 실행한다. 위의 손 절차는 자동 배포가 실패했을 때 쓴다.
+
+- **순서**: API 이미지 빌드·푸시 → API 앱을 새 이미지로 → 새 리비전과 `/health` 확인 → 웹 빌드·배포. `/health`가 `ok`가 아니면 실패로 끝나고 웹은 배포하지 않는다.
+- **설정 작업은 자동으로 돌지 않는다.** 시드와 문서 삭제·재적재를 하므로, 스키마·데이터·문서가 바뀐 릴리스에서만 Actions 화면의 `deploy` → Run workflow(브랜치 `main`)에서 "설정 작업도 실행"을 켜고 돌린다. 이때는 설정 작업이 성공한 뒤에 API를 바꾼다.
+- **`dev`에 머지하는 것만으로는 배포되지 않는다.** 평가를 돌리는 중에 API가 다시 뜨지 않게 하려는 것이다. 배포가 필요하면 Cloud Engineer에게 릴리스를 요청한다.
+- **환경변수는 바꾸지 않는다.** 새 환경변수가 필요하면 `az containerapp update --set-env-vars`로 따로 넣는다.
+- **Azure 로그인**: 키 없이 로그인한다(OIDC). Entra 앱 `gh-etf-agent-deploy`가 이 저장소의 `main` 브랜치에서만 토큰을 받고, 권한은 레지스트리 `AcrPush`와 API 앱·설정 작업 `Contributor`뿐이다. Key Vault 권한은 없다. 한 번만 [`scripts/setup-cd.sh`](../../scripts/setup-cd.sh)를 실행해 만든다.
+- **GitHub Secrets**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`(스크립트가 넣는다), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`(Cloud Engineer가 넣는다). Cloudflare 토큰은 대시보드 → My Profile → API Tokens에서 "Cloudflare Pages: Edit" 권한만 주어 만든다.
+- 아직 실제로 돌려 보지 않았다. 첫 릴리스에서 확인한다.
+
 ### 리허설에서 걸린 것
 
 - **DB 지역**: koreacentral의 B1ms는 SKU 목록에는 나오지만 영역 1·2·3 모두 생성이 거부됐다. 일본 동부는 한 번에 됐다.
