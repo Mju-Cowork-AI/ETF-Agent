@@ -350,6 +350,9 @@ def test_contrast_explanations_are_allowed(text: str) -> None:
         ("이 ETF는 원금이 보장됩니다.", "banned:principal_safety"),
         ("손실 없이 수익이 보장됩니다.", "banned:return_guarantee"),
         ("다른 ETF와 달리 이 상품은 확정 수익을 드립니다.", "banned:return_guarantee"),
+        # 이중 부정은 보장 주장이다
+        ("원금이 보장되지 않는 건 아닙니다.", "banned:principal_safety"),
+        ("수익 보장이 안 되는 게 아닙니다.", "banned:return_guarantee"),
     ],
 )
 def test_real_guarantee_claims_still_blocked(text: str, expected: str) -> None:
