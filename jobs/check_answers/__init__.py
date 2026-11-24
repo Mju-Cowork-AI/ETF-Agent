@@ -29,6 +29,7 @@ ITEM_COLUMN: dict[str, str] = {
     "분배주기": "distribution_cycle",
     "기초지수": "underlying_index",
     "운용사": "issuer",
+    "환헤지": "currency_hedged",
 }
 
 AS_OF_COLUMN: dict[str, str] = {
@@ -37,8 +38,12 @@ AS_OF_COLUMN: dict[str, str] = {
 }
 
 NUMERIC_ITEMS = {"총보수", "실부담비용"}
-TEXT_ITEMS = {"분배주기", "기초지수", "운용사"}
+TEXT_ITEMS = {"분배주기", "기초지수", "운용사", "환헤지"}
 DATE_ITEMS = {"상장일"}
+
+# sources.item 의 부분 문자열로 항목을 인식한다.
+# "실부담비용"이 "총보수"에 걸리지 않도록 긴 이름부터 매칭한다.
+_ITEM_MATCH_ORDER: list[str] = sorted(ITEM_COLUMN, key=len, reverse=True)
 
 
 @dataclass
@@ -118,27 +123,47 @@ def find_etfs(text: str, all_etfs: list[EtfMaster]) -> list[EtfMaster]:
 # ---- Item detection ----
 
 
+def _normalize_item_name(raw: str) -> str | None:
+    """sources.item 의 부분 문자열에서 표준 항목 이름을 찾는다.
+
+    긴 이름("실부담비용")부터 매칭해 "총보수"와 섞이지 않게 한다.
+    """
+    if raw in ITEM_COLUMN:
+        return raw
+    for canonical in _ITEM_MATCH_ORDER:
+        if canonical in raw:
+            return canonical
+    return None
+
+
 def _sources_items(item: dict[str, Any]) -> list[str]:
     seen: list[str] = []
     for src in item.get("sources", []):
-        name = src.get("item", "")
-        if name in ITEM_COLUMN and name not in seen:
+        name = _normalize_item_name(src.get("item", ""))
+        if name and name not in seen:
             seen.append(name)
     return seen
 
 
-def _detect_fee_item(item: dict[str, Any]) -> tuple[str | None, bool]:
-    """Return (item_name, is_guess). is_guess=True when column undetermined."""
+def _detect_fee_items(item: dict[str, Any]) -> tuple[set[str], bool]:
+    """Return (item_names, is_guess).
+
+    item_names 는 {"총보수"}, {"실부담비용"}, {"총보수", "실부담비용"}, 또는 빈 집합.
+    is_guess=True 일 때는 sources·keywords 에서 판별 불가, 빈 집합이 돌아온다.
+    """
+    found: set[str] = set()
     for src in item.get("sources", []):
-        si = src.get("item", "")
-        if si in NUMERIC_ITEMS:
-            return si, False
+        normed = _normalize_item_name(src.get("item", ""))
+        if normed and normed in NUMERIC_ITEMS:
+            found.add(normed)
     kw = set(item.get("expected_keywords", []))
     if "총보수" in kw:
-        return "총보수", False
+        found.add("총보수")
     if "실부담비용" in kw:
-        return "실부담비용", False
-    return None, True
+        found.add("실부담비용")
+    if found:
+        return found, False
+    return set(), True
 
 
 # ---- Comparison helpers ----
@@ -223,6 +248,85 @@ def _text_match(
         kw for kw in keywords if kw not in skip and kw not in item_name and item_name not in kw
     ]
     return bool(remaining) and all(kw in db_value for kw in remaining)
+
+
+# ---- Number-to-item assignment (문제 1) ----
+
+_ITEM_LABEL_RE = re.compile(r"총보수|실부담비용")
+
+
+@dataclass
+class _NumberAssignment:
+    number: str
+    item: str
+    etf_name: str | None  # None = ETF 미확정
+    is_guess: bool
+
+
+def _assign_numbers_to_items(
+    numbers: list[str],
+    answer: str,
+    etfs: list[EtfMaster],
+    fee_items: set[str],
+) -> list[_NumberAssignment]:
+    """각 숫자에 항목과 ETF를 대응시킨다.
+
+    항목: expected_answer 에서 숫자 바로 앞 가장 가까운 항목 낱말.
+    ETF: expected_answer 에서 숫자 바로 앞 가장 가까운 ETF 이름.
+    """
+    # ETF 이름 위치 미리 계산
+    etf_positions: list[tuple[int, str]] = []
+    for etf in etfs:
+        for m in re.finditer(re.escape(etf.name), answer):
+            etf_positions.append((m.start(), etf.name))
+    etf_positions.sort()
+
+    result: list[_NumberAssignment] = []
+    for nstr in numbers:
+        raw = nstr.rstrip("%").rstrip()
+        pattern = re.escape(raw) + r"\s*%"
+        m = re.search(pattern, answer)
+        assigned_item: str | None = None
+        assigned_etf: str | None = None
+        is_guess = False
+
+        if m:
+            num_start = m.start()
+            before = answer[:num_start]
+
+            # 항목: 숫자 앞 가장 가까운 항목 낱말
+            best_label: str | None = None
+            best_pos = -1
+            for lm in _ITEM_LABEL_RE.finditer(before):
+                if lm.group() in fee_items and lm.end() > best_pos:
+                    best_pos = lm.end()
+                    best_label = lm.group()
+            assigned_item = best_label
+
+            # ETF: 숫자 앞 가장 가까운 ETF 이름
+            for pos, ename in reversed(etf_positions):
+                if pos < num_start:
+                    assigned_etf = ename
+                    break
+
+        # 항목 못 정하면 DB 값 비교 → 맞는 쪽 + "(추정)"
+        if not assigned_item:
+            exp = _parse_pct(nstr)
+            if exp is not None:
+                for fi in fee_items:
+                    col = ITEM_COLUMN[fi]
+                    if any(getattr(e, col, None) == exp for e in etfs):
+                        assigned_item = fi
+                        is_guess = True
+                        break
+
+        # 어느 컬럼과도 안 맞으면 첫 번째 항목으로 태깅(불일치)
+        if not assigned_item:
+            assigned_item = min(fee_items)
+
+        result.append(_NumberAssignment(nstr, assigned_item, assigned_etf, is_guess))
+
+    return result
 
 
 # ---- Check builders ----
@@ -349,11 +453,38 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
 
     # -- 수치 --
     if has_numeric:
-        fee_item, is_guess = _detect_fee_item(item)
-        if fee_item and not is_guess:
-            results.extend(
-                _check_numbers(item, etfs, numbers, ITEM_COLUMN[fee_item], fee_item, False)
-            )
+        fee_items, is_guess = _detect_fee_items(item)
+        if fee_items and not is_guess:
+            if len(fee_items) == 1:
+                fi = next(iter(fee_items))
+                results.extend(_check_numbers(item, etfs, numbers, ITEM_COLUMN[fi], fi, False))
+            else:
+                # 항목이 둘(총보수+실부담비용) → 숫자마다 항목+ETF 배정
+                assignments = _assign_numbers_to_items(numbers, answer, etfs, fee_items)
+                etf_map = {e.name: e for e in etfs}
+                for asgn in assignments:
+                    col = ITEM_COLUMN[asgn.item]
+                    tag = f"{asgn.item}(추정)" if asgn.is_guess else asgn.item
+                    exp = _parse_pct(asgn.number)
+                    target_etf = etf_map.get(asgn.etf_name or "") if asgn.etf_name else None
+                    if target_etf is not None:
+                        # ETF 확정 → 그 ETF의 컬럼과만 비교
+                        db = getattr(target_etf, col, None)
+                        results.append(
+                            CheckResult(
+                                qid,
+                                split,
+                                tag,
+                                asgn.number,
+                                _fmt_dec(db),
+                                db is not None and exp is not None and exp == db,
+                            )
+                        )
+                    else:
+                        # ETF 미확정 → 아무 ETF와 맞으면 일치 (기존 fallback)
+                        results.extend(
+                            _check_numbers(item, etfs, [asgn.number], col, asgn.item, asgn.is_guess)
+                        )
         elif is_guess:
             for try_item in ("총보수", "실부담비용"):
                 attempt = _check_numbers(item, etfs, numbers, ITEM_COLUMN[try_item], try_item, True)
@@ -402,7 +533,12 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
                         db_str = str(db_val) if db_val else ""
                         results.append(
                             CheckResult(
-                                qid, split, si, expected_date, db_str, expected_date == db_str
+                                qid,
+                                split,
+                                si,
+                                expected_date,
+                                db_str,
+                                expected_date == db_str,
                             )
                         )
 

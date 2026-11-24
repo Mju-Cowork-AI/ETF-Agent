@@ -97,7 +97,7 @@ npx wrangler pages deploy dist --project-name etf-agent --branch main
 - **환경변수는 바꾸지 않는다.** 새 환경변수가 필요하면 `az containerapp update --set-env-vars`로 따로 넣는다.
 - **Azure 로그인**: 키 없이 로그인한다(OIDC). Entra 앱 `gh-etf-agent-deploy`가 이 저장소의 `main` 브랜치에서만 토큰을 받고, 권한은 레지스트리 `AcrPush`와 API 앱·설정 작업 `Contributor`뿐이다. Key Vault 권한은 없다. 한 번만 [`scripts/setup-cd.sh`](../../scripts/setup-cd.sh)를 실행해 만든다.
 - **GitHub Secrets**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`(스크립트가 넣는다), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`(Cloud Engineer가 넣는다). Cloudflare 토큰은 대시보드 → My Profile → API Tokens에서 "Cloudflare Pages: Edit" 권한만 주어 만든다.
-- 아직 실제로 돌려 보지 않았다. 첫 릴리스에서 확인한다.
+- 11-24 첫 릴리스(`v1.0`, #54)에서 확인했다: API 약 2분, 웹 약 1분 20초. 처음에는 Azure 로그인이 실패했다. GitHub이 보내는 주체가 `repo:<조직>@<조직 ID>/<저장소>@<저장소 ID>:ref:refs/heads/main` 형식이라, 이 형식의 연동 자격 증명(`github-main-ids`)을 더 등록한 뒤 통과했다(스크립트에 반영).
 
 ### 리허설에서 걸린 것
 

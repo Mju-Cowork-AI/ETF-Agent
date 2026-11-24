@@ -23,14 +23,22 @@ fi
 az ad sp show --id "$APP_ID" --query id -o tsv >/dev/null 2>&1 || az ad sp create --id "$APP_ID" -o none
 SP_ID=$(az ad sp show --id "$APP_ID" --query id -o tsv)
 
-if ! az ad app federated-credential list --id "$APP_ID" --query "[].name" -o tsv | grep -qx "github-main"; then
-  az ad app federated-credential create --id "$APP_ID" -o none --parameters "{
-    \"name\": \"github-main\",
-    \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"repo:${REPO}:ref:refs/heads/main\",
-    \"audiences\": [\"api://AzureADTokenExchange\"]
-  }"
-fi
+# GitHub이 보내는 주체(subject)는 조직·저장소 ID가 붙은 형식이다(11-24 첫 릴리스에서 확인).
+# 이름만 있는 예전 형식(github-main)도 함께 등록해 둔다.
+OWNER_ID=$(gh api "repos/${REPO}" --jq .owner.id)
+REPO_ID=$(gh api "repos/${REPO}" --jq .id)
+add_cred() {
+  if ! az ad app federated-credential list --id "$APP_ID" --query "[].name" -o tsv | grep -qx "$1"; then
+    az ad app federated-credential create --id "$APP_ID" -o none --parameters "{
+      \"name\": \"$1\",
+      \"issuer\": \"https://token.actions.githubusercontent.com\",
+      \"subject\": \"$2\",
+      \"audiences\": [\"api://AzureADTokenExchange\"]
+    }"
+  fi
+}
+add_cred github-main "repo:${REPO}:ref:refs/heads/main"
+add_cred github-main-ids "repo:${REPO%%/*}@${OWNER_ID}/${REPO##*/}@${REPO_ID}:ref:refs/heads/main"
 
 SCOPE="/subscriptions/${SUB}/resourceGroups/${RG}/providers"
 assign() {
