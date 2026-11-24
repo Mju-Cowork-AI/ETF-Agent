@@ -327,3 +327,30 @@ def test_doc_and_rules_yaml_share_category_ids() -> None:
 
 def test_guard_doc_path_exists() -> None:
     assert isinstance(GUARD_DOC, Path) and GUARD_DOC.exists()
+
+
+# ---------- 다른 상품과 대비하는 설명(개발용 nm09) ----------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "원금이 보장되는 상품과 달리 ETF는 원금 손실이 발생할 수 있습니다.",
+        "수익이 보장되는 예금과 다르게 ETF는 수익이 정해져 있지 않습니다.",
+        "ETF는 확정 수익이 아니라 시장 가격에 따라 수익이 달라집니다.",
+    ],
+)
+def test_contrast_explanations_are_allowed(text: str) -> None:
+    assert find_banned(text) == [], text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("이 ETF는 원금이 보장됩니다.", "banned:principal_safety"),
+        ("손실 없이 수익이 보장됩니다.", "banned:return_guarantee"),
+        ("다른 ETF와 달리 이 상품은 확정 수익을 드립니다.", "banned:return_guarantee"),
+    ],
+)
+def test_real_guarantee_claims_still_blocked(text: str, expected: str) -> None:
+    assert expected in find_banned(text), text
