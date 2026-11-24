@@ -12,11 +12,10 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from app.repositories.models import EtfMaster
 from app.settings import REPO_ROOT
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +244,9 @@ def _text_match(
         return True
     skip = set(etf_names)
     remaining = [
-        kw for kw in keywords if kw not in skip and kw not in item_name and item_name not in kw
+        kw
+        for kw in keywords
+        if kw not in skip and kw not in item_name and item_name not in kw
     ]
     return bool(remaining) and all(kw in db_value for kw in remaining)
 
@@ -255,51 +256,76 @@ def _text_match(
 _ITEM_LABEL_RE = re.compile(r"총보수|실부담비용")
 
 
+@dataclass
+class _NumberAssignment:
+    number: str
+    item: str
+    etf_name: str | None  # None = ETF 미확정
+    is_guess: bool
+
+
 def _assign_numbers_to_items(
     numbers: list[str],
     answer: str,
     etfs: list[EtfMaster],
     fee_items: set[str],
-) -> list[tuple[str, str, bool]]:
-    """각 숫자에 항목을 대응시킨다.
+) -> list[_NumberAssignment]:
+    """각 숫자에 항목과 ETF를 대응시킨다.
 
-    Returns list of (number_str, item_name, is_guess) — 순서는 numbers 와 동일.
+    항목: expected_answer 에서 숫자 바로 앞 가장 가까운 항목 낱말.
+    ETF: expected_answer 에서 숫자 바로 앞 가장 가까운 ETF 이름.
     """
-    result: list[tuple[str, str, bool]] = []
+    # ETF 이름 위치 미리 계산
+    etf_positions: list[tuple[int, str]] = []
+    for etf in etfs:
+        for m in re.finditer(re.escape(etf.name), answer):
+            etf_positions.append((m.start(), etf.name))
+    etf_positions.sort()
+
+    result: list[_NumberAssignment] = []
     for nstr in numbers:
         raw = nstr.rstrip("%").rstrip()
         pattern = re.escape(raw) + r"\s*%"
         m = re.search(pattern, answer)
-        assigned: str | None = None
+        assigned_item: str | None = None
+        assigned_etf: str | None = None
         is_guess = False
 
-        # 1) expected_answer 에서 숫자 바로 앞 가장 가까운 항목 낱말
         if m:
-            before = answer[: m.start()]
+            num_start = m.start()
+            before = answer[:num_start]
+
+            # 항목: 숫자 앞 가장 가까운 항목 낱말
             best_label: str | None = None
             best_pos = -1
             for lm in _ITEM_LABEL_RE.finditer(before):
                 if lm.group() in fee_items and lm.end() > best_pos:
                     best_pos = lm.end()
                     best_label = lm.group()
-            assigned = best_label
+            assigned_item = best_label
 
-        # 2) 못 정하면 DB 값 비교 → 맞는 쪽 + "(추정)"
-        if not assigned:
+            # ETF: 숫자 앞 가장 가까운 ETF 이름
+            for pos, ename in reversed(etf_positions):
+                if pos < num_start:
+                    assigned_etf = ename
+                    break
+
+        # 항목 못 정하면 DB 값 비교 → 맞는 쪽 + "(추정)"
+        if not assigned_item:
             exp = _parse_pct(nstr)
             if exp is not None:
                 for fi in fee_items:
                     col = ITEM_COLUMN[fi]
                     if any(getattr(e, col, None) == exp for e in etfs):
-                        assigned = fi
+                        assigned_item = fi
                         is_guess = True
                         break
 
-        # 3) 어느 컬럼과도 안 맞으면 첫 번째 항목으로 태깅(불일치)
-        if not assigned:
-            assigned = sorted(fee_items)[0]
+        # 어느 컬럼과도 안 맞으면 첫 번째 항목으로 태깅(불일치)
+        if not assigned_item:
+            assigned_item = min(fee_items)
 
-        result.append((nstr, assigned, is_guess))
+        result.append(_NumberAssignment(nstr, assigned_item, assigned_etf, is_guess))
 
     return result
 
@@ -321,7 +347,9 @@ def _check_numbers(
     tag = f"{label}(추정)" if is_guess else label
 
     if not etfs:
-        return [CheckResult(qid, split, tag, n, "", False, "대조 불가") for n in numbers]
+        return [
+            CheckResult(qid, split, tag, n, "", False, "대조 불가") for n in numbers
+        ]
 
     # 여러 숫자 + 여러 ETF → 짝짓기 시도
     if len(numbers) > 1 and len(etfs) > 1:
@@ -332,7 +360,9 @@ def _check_numbers(
             for ename, nstr in pairs.items():
                 etf = etf_map.get(ename)
                 if not etf:
-                    results.append(CheckResult(qid, split, tag, nstr, "", False, "대조 불가"))
+                    results.append(
+                        CheckResult(qid, split, tag, nstr, "", False, "대조 불가")
+                    )
                     continue
                 db = getattr(etf, col, None)
                 exp = _parse_pct(nstr)
@@ -354,15 +384,23 @@ def _check_numbers(
         for nstr in numbers:
             exp = _parse_pct(nstr)
             matched_name = next(
-                (n for n, v in db_map.items() if v is not None and exp is not None and exp == v),
+                (
+                    n
+                    for n, v in db_map.items()
+                    if v is not None and exp is not None and exp == v
+                ),
                 None,
             )
             if matched_name is not None:
                 results.append(
-                    CheckResult(qid, split, tag, nstr, _fmt_dec(db_map[matched_name]), True)
+                    CheckResult(
+                        qid, split, tag, nstr, _fmt_dec(db_map[matched_name]), True
+                    )
                 )
             else:
-                all_db = ", ".join(f"{n}={_fmt_dec(v)}" for n, v in db_map.items() if v is not None)
+                all_db = ", ".join(
+                    f"{n}={_fmt_dec(v)}" for n, v in db_map.items() if v is not None
+                )
                 results.append(CheckResult(qid, split, tag, nstr, all_db, False))
         return results
 
@@ -377,7 +415,9 @@ def _check_numbers(
                 tag,
                 nstr,
                 _fmt_dec(db),
-                db is not None and _parse_pct(nstr) is not None and _parse_pct(nstr) == db,
+                db is not None
+                and _parse_pct(nstr) is not None
+                and _parse_pct(nstr) == db,
             )
             for nstr in numbers
         ]
@@ -403,7 +443,9 @@ def _check_numbers(
     return results
 
 
-def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckResult] | None:
+def build_checks(
+    item: dict[str, Any], all_etfs: list[EtfMaster]
+) -> list[CheckResult] | None:
     """문항 하나에 대한 대조 결과. 대조할 항목이 없으면 None."""
     combined = _combined_text(item)
     etfs = find_etfs(combined, all_etfs)
@@ -432,29 +474,53 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
         if fee_items and not is_guess:
             if len(fee_items) == 1:
                 fi = next(iter(fee_items))
-                results.extend(_check_numbers(item, etfs, numbers, ITEM_COLUMN[fi], fi, False))
+                results.extend(
+                    _check_numbers(item, etfs, numbers, ITEM_COLUMN[fi], fi, False)
+                )
             else:
-                # 항목이 둘(총보수+실부담비용) → 숫자마다 항목 배정
+                # 항목이 둘(총보수+실부담비용) → 숫자마다 항목+ETF 배정
                 assignments = _assign_numbers_to_items(numbers, answer, etfs, fee_items)
-                for fi in fee_items:
-                    nums_for_fi = [n for n, a, _ in assignments if a == fi]
-                    guesses = {n: g for n, a, g in assignments if a == fi}
-                    if nums_for_fi:
-                        for nstr in nums_for_fi:
-                            results.extend(
-                                _check_numbers(
-                                    item, etfs, [nstr], ITEM_COLUMN[fi], fi, guesses[nstr]
-                                )
+                etf_map = {e.name: e for e in etfs}
+                for asgn in assignments:
+                    col = ITEM_COLUMN[asgn.item]
+                    tag = f"{asgn.item}(추정)" if asgn.is_guess else asgn.item
+                    exp = _parse_pct(asgn.number)
+                    target_etf = (
+                        etf_map.get(asgn.etf_name or "") if asgn.etf_name else None
+                    )
+                    if target_etf is not None:
+                        # ETF 확정 → 그 ETF의 컬럼과만 비교
+                        db = getattr(target_etf, col, None)
+                        results.append(
+                            CheckResult(
+                                qid,
+                                split,
+                                tag,
+                                asgn.number,
+                                _fmt_dec(db),
+                                db is not None and exp is not None and exp == db,
                             )
+                        )
+                    else:
+                        # ETF 미확정 → 아무 ETF와 맞으면 일치 (기존 fallback)
+                        results.extend(
+                            _check_numbers(
+                                item, etfs, [asgn.number], col, asgn.item, asgn.is_guess
+                            )
+                        )
         elif is_guess:
             for try_item in ("총보수", "실부담비용"):
-                attempt = _check_numbers(item, etfs, numbers, ITEM_COLUMN[try_item], try_item, True)
+                attempt = _check_numbers(
+                    item, etfs, numbers, ITEM_COLUMN[try_item], try_item, True
+                )
                 if attempt and all(r.match for r in attempt):
                     results.extend(attempt)
                     break
             else:
                 results.extend(
-                    _check_numbers(item, etfs, numbers, "total_expense_ratio", "총보수", True)
+                    _check_numbers(
+                        item, etfs, numbers, "total_expense_ratio", "총보수", True
+                    )
                 )
 
     # -- 글자 항목 --
@@ -462,7 +528,9 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
         if si in TEXT_ITEMS:
             col = ITEM_COLUMN[si]
             if not etfs:
-                results.append(CheckResult(qid, split, si, answer, "", False, "대조 불가"))
+                results.append(
+                    CheckResult(qid, split, si, answer, "", False, "대조 불가")
+                )
             else:
                 for etf in etfs:
                     db_val = getattr(etf, col, None) or ""
@@ -486,7 +554,9 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
             if expected_date:
                 if not etfs:
                     results.append(
-                        CheckResult(qid, split, si, expected_date, "", False, "대조 불가")
+                        CheckResult(
+                            qid, split, si, expected_date, "", False, "대조 불가"
+                        )
                     )
                 else:
                     for etf in etfs:
@@ -494,7 +564,12 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
                         db_str = str(db_val) if db_val else ""
                         results.append(
                             CheckResult(
-                                qid, split, si, expected_date, db_str, expected_date == db_str
+                                qid,
+                                split,
+                                si,
+                                expected_date,
+                                db_str,
+                                expected_date == db_str,
                             )
                         )
 
@@ -506,12 +581,16 @@ def build_checks(item: dict[str, Any], all_etfs: list[EtfMaster]) -> list[CheckR
             col = AS_OF_COLUMN[si]
             label = f"{si} 기준일"
             if not etfs:
-                results.append(CheckResult(qid, split, label, as_of, "", False, "대조 불가"))
+                results.append(
+                    CheckResult(qid, split, label, as_of, "", False, "대조 불가")
+                )
             else:
                 for etf in etfs:
                     db_val = getattr(etf, col, None)
                     db_str = str(db_val) if db_val else ""
-                    results.append(CheckResult(qid, split, label, as_of, db_str, as_of == db_str))
+                    results.append(
+                        CheckResult(qid, split, label, as_of, db_str, as_of == db_str)
+                    )
 
     return results
 
@@ -563,7 +642,9 @@ async def load_all_etfs(session: AsyncSession) -> list[EtfMaster]:
 # ---- Main entry ----
 
 
-async def run(maker: async_sessionmaker[AsyncSession], eval_dir: Path | None = None) -> int:
+async def run(
+    maker: async_sessionmaker[AsyncSession], eval_dir: Path | None = None
+) -> int:
     """대조 실행. 불일치·대조 불가가 있으면 1, 없으면 0."""
     dev_items, test_items, warns = load_items(eval_dir)
     for w in warns:

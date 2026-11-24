@@ -513,6 +513,46 @@ def test_multi_etf_dual_fee_one_mismatch():
     assert mismatched[0].item == "실부담비용"
 
 
+# ---- ETF 값 뒤바뀜 감지 ----
+
+
+def test_multi_etf_dual_fee_swapped_values():
+    """두 ETF의 총보수를 서로 바꿔 적으면 총보수 2건 불일치, 실부담비용 2건 일치."""
+    etf_tiger = _etf(
+        name="TIGER 미국나스닥100",
+        total_expense_ratio=Decimal("0.0068"),
+        actual_expense_ratio=Decimal("0.1430"),
+    )
+    etf_kodex = _etf(
+        name="KODEX 미국나스닥100",
+        total_expense_ratio=Decimal("0.0062"),
+        actual_expense_ratio=Decimal("0.1571"),
+    )
+    # 총보수가 서로 바뀜: TIGER 0.0062(실제 0.0068), KODEX 0.0068(실제 0.0062)
+    item = _item(
+        question="TIGER 미국나스닥100이랑 KODEX 미국나스닥100 총보수 실부담비용 비교해줘",
+        keywords=["TIGER 미국나스닥100", "KODEX 미국나스닥100", "총보수", "실부담비용"],
+        numbers=["0.0062%", "0.1430%", "0.0068%", "0.1571%"],
+        answer=(
+            "TIGER 미국나스닥100 총보수 0.0062%, 실부담비용 0.1430%. "
+            "KODEX 미국나스닥100 총보수 0.0068%, 실부담비용 0.1571%"
+        ),
+        sources=[{"item": "총보수"}, {"item": "실부담비용"}],
+    )
+    results = build_checks(item, [etf_tiger, etf_kodex])
+    assert results is not None
+    fee_results = [r for r in results if r.item in ("총보수", "실부담비용")]
+
+    matched = [r for r in fee_results if r.match]
+    mismatched = [r for r in fee_results if not r.match]
+
+    # 실부담비용 2건은 맞고, 총보수 2건은 틀림
+    assert len(matched) == 2
+    assert all(r.item == "실부담비용" for r in matched)
+    assert len(mismatched) == 2
+    assert all(r.item == "총보수" for r in mismatched)
+
+
 # ---- 환헤지 (문제 2) ----
 
 
