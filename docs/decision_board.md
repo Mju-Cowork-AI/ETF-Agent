@@ -161,7 +161,7 @@
 - [x] 코드 들여오기(Cloud Engineer, #6)
 - [x] `.env.example` 변수 이름을 들여온 코드에 맞추기(Cloud Engineer, #6)
 - [x] 웹 배포 방식 정하고 D9 고치기(Cloud Engineer가 Cloudflare Pages로 정함, D9 수정 11-20)
-- [ ] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer)
+- [x] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer, 11-24. 결정된 배치는 5장에 넣음)
 - [x] 익명 발급 반복 호출 제한 결정(이슈 #18): 넣지 않음(11-22)
 - [ ] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9)
 - [ ] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설)
