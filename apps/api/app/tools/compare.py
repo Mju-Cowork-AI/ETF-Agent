@@ -112,10 +112,13 @@ def _with_date(value: str, as_of: date | None) -> str:
 def list_table(etfs: Sequence[EtfMaster], *, net_assets: bool = False) -> str:
     """조건 검색 목록. 비용 비교는 총보수만으로 하지 않도록 실부담비용(기준일)을 함께 둔다(순위 규칙 R2).
 
+    분배주기 열은 '월배당 ETF 뭐가 있어?'처럼 분배주기로 찾는 질문에 답할 근거다. 없으면 모델이
+    표에 분배주기가 없다며 '확인할 수 없다'고 답한다(11-24 개발용 평가 gen17).
+
     net_assets=True(순자산 정렬)면 순자산(상품별 기준일) 열을 더한다(순자산 기준일이 상품마다 다름).
     """
-    head = "| 이름 | 종목코드 | 분류 | 기초지수 | 총보수 | 실부담비용(기준일) |"
-    sep = "| --- | --- | --- | --- | --- | --- |"
+    head = "| 이름 | 종목코드 | 분류 | 기초지수 | 분배주기 | 총보수 | 실부담비용(기준일) |"
+    sep = "| --- | --- | --- | --- | --- | --- | --- |"
     if net_assets:
         head += " 순자산(기준일) |"
         sep += " --- |"
@@ -123,7 +126,8 @@ def list_table(etfs: Sequence[EtfMaster], *, net_assets: bool = False) -> str:
     for e in etfs:
         row = (
             f"| {_cell(e.name)} | {e.ticker} | {_cell(e.category or '-')} | "
-            f"{_cell(e.underlying_index or '-')} | {fmt.fee(e.total_expense_ratio)} | "
+            f"{_cell(e.underlying_index or '-')} | {_cell(e.distribution_cycle or '-')} | "
+            f"{fmt.fee(e.total_expense_ratio)} | "
             f"{_with_date(fmt.fee(e.actual_expense_ratio), e.actual_expense_as_of)} |"
         )
         if net_assets:
