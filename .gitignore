@@ -232,3 +232,61 @@ data/raw/
 *.faiss
 *.index
 index/
+
+# --- 팀 문서(docs/team_rules.md 5장)에 따라 추가 ---
+# Node (웹 화면)
+node_modules/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# DB 파일과 덤프
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+# 벡터 색인·문서 검색 자료
+chroma/
+docs_rag/
+# 투자설명서 등 외부 원본 PDF (재배포 금지)
+*.pdf
+# 평가 결과 원본 (요약 표만 문서로 커밋)
+eval/results/
+# 개인 Claude Code 로컬 설정
+.claude/settings.local.json
+# 시험용 평가 문항(11-26 시험용 평가 직전에 커밋)
+data/eval-sets/private/
+
+# --- FastAPI 기반 코드에서 추가 ---
+# 비밀값
+!.env.local.example
+*.pem
+*.key
+infra/mvp/cloudflared/config.yml
+infra/mvp/cloudflared/*.json
+# Node / Web (위 Python 템플릿의 lib/ 규칙이 웹 소스 폴더를 가리지 않게 한다)
+!apps/web/src/lib/
+dist-ssr/
+*.local
+coverage/
+# 빌드 산출물
+*.tsbuildinfo
+# 모델 파일·학습 산출물
+*.gguf
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.bin
+ml/**/checkpoints/
+ml/**/outputs/
+ml/**/runs/
+models/
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

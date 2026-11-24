@@ -1,0 +1,15 @@
+{"id": "g01", "question": "샘플 코스피200이랑 샘플 미국S&P500 비교해줘", "expected_intents": ["etf_info"], "expected_keywords": ["샘플 코스피200", "샘플 미국S&P500", "기준일"], "expected_numbers": ["36,180원", "21,940원"]}
+{"id": "g02", "question": "샘플 미국나스닥100 괴리율 알려줘", "expected_intents": ["etf_info"], "expected_keywords": ["괴리율", "기준일"], "expected_numbers": ["0.20%"]}
+{"id": "g03", "question": "샘플 코스피200 총보수 얼마야?", "expected_intents": ["etf_info"], "expected_keywords": ["총보수"], "expected_numbers": ["0.0450%"]}
+{"id": "g04", "question": "괴리율이 뭐야?", "level": "beginner", "expected_intents": ["faq"], "expected_keywords": ["NAV"], "expected_numbers": []}
+{"id": "g05", "question": "ETF 분배금은 언제 받아?", "expected_intents": ["faq"], "expected_keywords": ["분배"], "expected_numbers": []}
+{"id": "g06", "question": "레버리지 ETF를 오래 들고 있으면 어떻게 돼?", "level": "intermediate", "expected_intents": ["faq"], "expected_keywords": ["레버리지"], "expected_numbers": []}
+{"id": "g07", "question": "샘플 반도체 최근 공시 알려줘", "expected_intents": ["disclosure"], "expected_keywords": ["샘플전자", "원문"], "expected_numbers": []}
+{"id": "g08", "question": "샘플 코스피200 지금 사야 할까?", "expected_intents": ["high_risk"], "expected_keywords": ["특정 시점을 안내하지 않습니다"], "expected_numbers": []}
+{"id": "g09", "question": "나한테 맞는 ETF 추천해줘", "expected_intents": ["recommendation"], "expected_keywords": ["맞춤 상품 추천은 아직 제공하지 않습니다"], "expected_numbers": []}
+{"id": "g10", "question": "총보수 0.1% 이하 해외 주식 ETF 찾아줘", "expected_intents": ["etf_info"], "expected_keywords": ["샘플 미국S&P500", "샘플 미국나스닥100"], "expected_numbers": ["0.0700%"]}
+{"id": "g11", "question": "ETF랑 ETN 차이가 뭐야?", "level": "beginner", "expected_intents": ["faq"], "expected_keywords": ["ETN"], "expected_numbers": []}
+{"id": "g12", "question": "환헤지 ETF가 뭐야?", "expected_intents": ["faq"], "expected_keywords": ["환"], "expected_numbers": []}
+{"id": "g13", "question": "연금계좌에서 레버리지 ETF를 살 수 있나요?", "expected_intents": ["faq"], "expected_keywords": ["연금계좌"], "expected_numbers": []}
+{"id": "g14", "question": "커버드콜 ETF는 어떤 구조야?", "level": "intermediate", "expected_intents": ["faq"], "expected_keywords": ["콜옵션"], "expected_numbers": []}
+{"id": "g15", "question": "ETF가 상장폐지되면 돈은 어떻게 돼?", "expected_intents": ["faq"], "expected_keywords": ["상환"], "expected_numbers": []}

@@ -1,0 +1,55 @@
+# API Container App 정의 예시(비밀 값 없음, Key Vault 참조만). infra/azure/README.md "리허설 배포 구성" 참고
+# 만들기: az containerapp create -g rg-etf-agent -n ca-etf-agent-api --yaml <이 파일을 채운 사본>
+# <구독 ID>와 <태그>를 채워 쓴다. 채운 파일은 커밋하지 않는다.
+location: koreacentral
+identity:
+  type: UserAssigned
+  userAssignedIdentities:
+    "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api": {}
+properties:
+  environmentId: "/subscriptions/<구독 ID>/resourceGroups/rg-etf-agent/providers/Microsoft.App/managedEnvironments/cae-etf-agent"
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: auto
+      allowInsecure: false
+    registries:
+      - server: acretfagentb084.azurecr.io
+        identity: "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api"
+    secrets:
+      - {name: database-url, keyVaultUrl: "https://kv-etf-agent-b084.vault.azure.net/secrets/DATABASE-URL", identity: "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api"}
+      - {name: llm-api-key, keyVaultUrl: "https://kv-etf-agent-b084.vault.azure.net/secrets/LLM-API-KEY", identity: "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api"}
+      - {name: local-jwt-secret, keyVaultUrl: "https://kv-etf-agent-b084.vault.azure.net/secrets/LOCAL-JWT-SECRET", identity: "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api"}
+      - {name: admin-token, keyVaultUrl: "https://kv-etf-agent-b084.vault.azure.net/secrets/ADMIN-TOKEN", identity: "/subscriptions/<구독 ID>/resourcegroups/rg-etf-agent/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-etf-agent-api"}
+  template:
+    terminationGracePeriodSeconds: 45
+    scale: {minReplicas: 1, maxReplicas: 1}
+    containers:
+      - name: api
+        image: acretfagentb084.azurecr.io/etf-agent-api:<태그>
+        resources: {cpu: 0.5, memory: 1Gi}
+        env:
+          - {name: APP_ENV, value: prod}
+          - {name: DATABASE_URL, secretRef: database-url}
+          - {name: AUTH_PROVIDER, value: local}
+          - {name: LOCAL_JWT_SECRET, secretRef: local-jwt-secret}
+          - {name: ANON_ACCESS_ENABLED, value: "true"}
+          - {name: ADMIN_AUTH, value: token}
+          - {name: ADMIN_TOKEN, secretRef: admin-token}
+          - {name: DAILY_QUESTION_LIMIT, value: "200"}
+          - {name: CORS_ORIGINS, value: "https://etf-agent.pages.dev"}
+          - {name: LLM_PROVIDER, value: openai_compat}
+          - {name: LLM_BASE_URL, value: "https://etf-agent-local-22eaff.openai.azure.com/openai/v1/"}
+          - {name: LLM_API_KEY, secretRef: llm-api-key}
+          - {name: LLM_MODEL, value: gpt-6-sol}
+          - {name: JUDGE_MODEL, value: gpt-6-luna}
+          - {name: PLAN_MODEL, value: gpt-6-luna}
+          - {name: EMBEDDING_MODEL, value: text-embedding-3-small}
+          - {name: EMBEDDING_DIM, value: "1024"}
+          - {name: EMBEDDING_REQUEST_DIMENSIONS, value: "true"}
+          - {name: FALLBACK_PROVIDER, value: none}
+          - {name: STORAGE_PROVIDER, value: local}
+          - {name: STORAGE_LOCAL_DIR, value: /data/storage}
+          - {name: TRACER, value: pg}

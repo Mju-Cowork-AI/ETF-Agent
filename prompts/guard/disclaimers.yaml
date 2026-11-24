@@ -1,0 +1,23 @@
+# 의도별 필수 고지 (P1-AG-06). 합성 단계가 붙이고, 가드가 누락을 검사한다.
+# text는 답변 끝 "고지" 영역에 그대로 들어간다.
+disclaimers:
+  general:
+    text: "본 답변은 정보 제공 목적이며 투자 권유가 아닙니다. 투자 결정과 그 결과는 투자자 본인에게 있습니다."
+  principal_loss:
+    text: "ETF는 예금자보호 대상이 아니며 원금 손실이 발생할 수 있습니다."
+  data_as_of:
+    text: "총보수·실부담비용·순자산 등 수치는 표에 적힌 기준일의 값이며, 이후 바뀌었을 수 있습니다."
+  sample_data:
+    # 의도가 아니라 데이터로 붙는다: 답변에 쓴 ETF가 샘플 상품(source='sample')일 때만 ETF 정보가 요청한다
+    text: "현재 서비스의 상품·시세는 개발용 샘플 데이터입니다."
+
+# 의도 → 필요한 고지 id 목록
+required:
+  etf_info: [general, principal_loss, data_as_of]  # 샘플 상품이면 sample_data가 더해진다
+  faq: [general]
+  disclosure: []
+  high_risk: []        # 필요한 고지는 템플릿 본문에 직접 쓴다
+  recommendation: []   # 필요한 고지는 템플릿 본문에 직접 쓴다
+  out_of_scope: []
+  blocked: []
+  general: []          # 일반 대화(로컬 전용): 근거 없음 표시는 FAQ 근거가 없어 일반 답변으로 넘어갈 때만 본문에 붙는다
