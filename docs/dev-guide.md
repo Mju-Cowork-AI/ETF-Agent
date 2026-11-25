@@ -112,14 +112,14 @@ git merge origin/dev     # 충돌이 나면 해결 후 커밋
 
 ## 5. 릴리스 (dev → main)
 
-- `dev` → `main` PR은 **selee1012만** 머지할 수 있고, **merge commit** 방식만 허용됩니다.
+- `dev` → `main` PR은 **팀원 누구나** 머지할 수 있고(11-24부터), **merge commit** 방식만 허용됩니다. 평소 릴리스는 Cloud Engineer가 합니다. 머지하면 바로 배포되어 API가 재시작되므로, 다른 팀원이 릴리스할 때는 채팅방에 먼저 알리고 평가 실행 중이 아닌지 확인합니다.
 - `main`으로는 `dev`에서 온 PR만 허용됩니다. 다른 브랜치에서 올리면 CI가 "main으로는 dev에서만 PR 가능"으로 실패합니다.
 - 릴리스마다 태그를 붙입니다: `v1.0`, `v1.1` …
 - `main`에 머지되면 API와 웹이 자동으로 배포됩니다(`deploy` 워크플로, [infra/azure/README.md](../infra/azure/README.md) "자동 배포"). `dev`에 머지하는 것만으로는 배포되지 않습니다.
 
 ```bash
 gh pr create --base main --head dev --title "release: v1.0"
-gh pr merge <PR번호> --merge          # selee1012만 가능
+gh pr merge <PR번호> --merge          # 머지하면 자동 배포(약 3분 30초)
 git fetch origin && git tag v1.0 origin/main && git push origin v1.0
 ```
 

@@ -21,8 +21,8 @@
 | 11-20(금) PR 리뷰 | **결정됨:** 공개 URL 설정(익명 접근 + 운영 토큰), 익명 토큰 30일, D13 세는 방식(서비스 전체 하루 KST, 리허설 임시값 200건), 가드 사유 id 범주 단위. PR #14·#15·#17 리뷰에서 정함([decisions.md](decisions.md)). D9 웹 배포처는 Cloudflare Pages로 정함(리허설 배포, Cloud Engineer)<br>**채팅방(Cloud Engineer 제안·반대 없음):** D9 수정 — 웹 Cloudflare Pages(Cloud Engineer 개인 계정), DB 지역 일본 동부(koreacentral B1ms 생성 거부, SKU 그대로) |
 | ~~11-21(토) 12:00~~ | **결정됨:** 범위 조정 2차(약 −24h, AI Engineer·Data Scientist·Cloud Engineer 동의), 계획 JSON `refuse` 범위 확대(AI Engineer 제안), 순자산 상품별 기준일 표시, 11-21 리허설 순서(Cloud Engineer) |
 | ~~11-22(일)~~ | **결정됨(팀원 동의):** 공수 실측(78h 사용, 남은 일 약 65h), 범위 조정 3차(약 −11.5h → 약 53.5h), 빠지는 날과 일정 조정, D6 변경(투자설명서 색인 뺌, 개념 문서 13개), DART 키·수집 코드 삭제(#39), 하루 상한 200건 유지, 시세 질문 처리(#35·#41), 문서만 바꾸는 PR은 리뷰 없이 머지, 채점 기준 8장 정리 |
-| 11-25(수) | D3 |
-| 11-29(일) | D10 |
+| ~~11-24(월) 18:00~~ | **결정됨(반대 없음):** D3 로컬 LLM 실측(포함, 계획 단계만, 배포는 Azure 유지), 배포·릴리스 계정 이중화, 멘토 피드백 반영(발표일 상한 조정, 실행 메모, 데이터 기준일 한 줄, RFP 범위 표)<br>**운영진 공지(11-24):** 제출물(GitHub 링크·PPT·최종 URL, 팀장 취합), SA PO 업무 겸임, 역할별 마지막 점검, 발표 형식(PPT 제출 시점은 확인 중) |
+| 11-29(일) | D10(11-30 하루 상한 조정 때 함께 정함) |
 
 ## 1. 공유: D1 FastAPI 기반 (결정됨)
 
@@ -146,28 +146,41 @@
 - 문서만 바꾸는 PR은 리뷰 없이 머지(승인 필수 4영역은 그대로)
 - 채점 기준([grading.md](grading.md) 8장): 3·7번(실행기도 숫자 대조 규칙, 답변 수준 입문 고정) 정해짐, 8·9번 손 채점, 1·2·4·10·11번 동의
 
+### 11-24(월) 18:00 채팅방과 운영진 공지
+
+**결과(11-24 기록).** 1~3은 채팅방에서 18시까지 반대 없이 확정, 4는 운영진 공지입니다. 자세한 내용은 [decisions.md](decisions.md) 결정됨 표에 있습니다.
+
+1. **D3 로컬 LLM 실측: 포함(계획 단계만), 배포는 Azure 유지.** 코드 변경 없이 환경변수만 바꿔 Ollama 모델로 계획(의도 분류) 단계를 교체, 개발용 일반 20문항: 키워드 규칙만 15/20, `exaone3.5:2.4b` 15/20(중앙값 1.8초), `gemma3:12b` 18/20(중앙값 5.8초). 소형은 규칙과 정확도가 같고, 12b는 계획 한 번에 약 6초라 응답 시간 목표에 안 맞음. Azure 계획 모델과 같은 20문항 비교는 개발용 평가의 의도 정확도로 채움([local_llm.md](local_llm.md))
+2. **배포·릴리스:** `dev` → `main` 릴리스 PR 머지 시 API·웹 자동 배포(v1.0·v1.1 확인), `dev` 머지만으로는 배포 안 됨. 평소 Cloud Engineer, 부재 시 팀원 누구나 [git-flow.md](git-flow.md) "릴리스" 절차. 코드 변경 없는 재배포는 Actions → deploy → Run workflow(`main`). Cloudflare 계정 초대 안 함, `rg-etf-agent` 권한은 AI Solutions Architect(Key Vault 키 값 열람 불가), 다른 팀원은 요청 시. 11-28 오전 Data Scientist가 한 번 따라 해 봄
+3. **멘토 피드백:** 11-30만 하루 상한을 올렸다가 복구(Cloud Engineer, D10도 이때), AI Engineer 실행 메모(11-27 전), Data Scientist 데이터 기준일·갱신 주기 한 줄, AI Solutions Architect RFP 범위 표([rfp_scope.md](rfp_scope.md))
+4. **운영진 공지:** 제출물(GitHub 링크·PPT·최종 URL, 팀장 조은서 취합·제출, PPT 제출 시점 확인 중), AI Solutions Architect PO 업무 겸임(PPT 주도, 사용자 인수 테스트 11-27), 역할별 마지막 점검, 발표 형식(슬라이드 초안 11-26 → 통합 11-27 → 완성 11-28). SA 발표 자료 2.5h → PPT 약 6h
+
 ### 나중에 정하는 안건
 
 | 안건 | 주도 역할 | 함께 정할 역할 | 이유 | 필요한 정보 | 선택지 | 기한 |
 |---|---|---|---|---|---|---|
-| D3 로컬 LLM 실측 | AI Engineer | Cloud Engineer | 로컬 모델 연결·실측 작업이 생김 / 실행 환경·자원이 영향받음 | 11-25 MVP 뒤 남은 여유. 포함 시 약 4h | 제외 / 포함 | 11-25(수) |
+| D3 로컬 LLM 실측 | AI Engineer | Cloud Engineer | 로컬 모델 연결·실측 작업이 생김 / 실행 환경·자원이 영향받음 | 11-25 MVP 뒤 남은 여유. 포함 시 약 4h | 제외 / 포함<br>**결정됨(11-24): 포함(계획 단계만), 배포는 Azure 유지** | 11-25(수, 11-24 결정) |
 | D10 시연 질문 캐시 | Cloud Engineer | AI Solutions Architect | 캐시 준비·시연 운영 작업이 생김 / 발표 진행과 설명이 영향받음 | 시연 질문 목록, 배포 안정성 | 캐시 / 실시간 | 11-29(일) |
 
 ## 3. 확정 뒤 바로 할 일
 
-- [x] decisions.md에 결정 기록(AI Solutions Architect). 11-18·11-19·11-20·11-21·11-22 기록
+- [x] decisions.md에 결정 기록(AI Solutions Architect). 11-18·11-19·11-20·11-21·11-22·11-24 기록
 - [ ] 작업 카드 만들기: 담당자 1명 = 브랜치 1개(전원). [roles.md](roles.md) 3장의 (a)·(b)·(c)를 먼저 만듭니다
-- [ ] README 팀원별 역할에 이름 채우기(AI Solutions Architect, 제출 전)
+- [x] README 팀원별 역할에 이름 채우기(AI Solutions Architect, 제출 전)
 - [x] 코드 들여오기(Cloud Engineer, #6)
 - [x] `.env.example` 변수 이름을 들여온 코드에 맞추기(Cloud Engineer, #6)
 - [x] 웹 배포 방식 정하고 D9 고치기(Cloud Engineer가 Cloudflare Pages로 정함, D9 수정 11-20)
 - [x] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer, 11-24. 결정된 배치는 5장에 넣음)
 - [x] 익명 발급 반복 호출 제한 결정(이슈 #18): 넣지 않음(11-22)
-- [ ] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9)
-- [ ] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설)
-- [ ] 11-21 리허설: 시드 다음 `python -m jobs.load_real` → API 재시작 → 손 테스트 12문항(캐시 끔), 단계별 시간을 트레이스로 확인(Cloud Engineer)
+- [x] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9). 계정 초대 대신 `main` 머지 시 자동 배포(#43)와 [git-flow.md](git-flow.md) "릴리스" 절차로 정함(11-24)
+- [x] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설). 12문항 p90 6.25초, 최대 9.6초([infra/azure/README.md](../infra/azure/README.md)). 시험용 평가(11-26)에서 다시 잼
+- [x] 11-21 리허설: 시드 다음 `python -m jobs.load_real` → API 재시작 → 손 테스트 12문항(캐시 끔), 단계별 시간을 트레이스로 확인(Cloud Engineer)
 - [ ] 계획 JSON `refuse`에 범위 밖 부분(공시·뉴스 등) 반영(AI Engineer, 11-23 계획 JSON 도입 때)
-- [ ] 비교·순위 답변에 상품별 순자산 기준일 표시(담당은 채팅방에서 정함)
-- [ ] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, #45)
+- [x] 비교·순위 답변에 상품별 순자산 기준일 표시(담당은 채팅방에서 정함). 비교표에 순자산 기준일 행이 나옴(11-25 배포 URL에서 확인)
+- [x] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, #45)
 - [ ] 사용자 테스트 구글 폼 만들기(Cloud Engineer, 11-26까지)
-- [ ] 재계획 루프 머지(AI Engineer, 11-24까지, 가장 중요)
+- [x] 재계획 루프 머지(AI Engineer, #47)
+- [x] D3 로컬 LLM 실측(계획 단계만, #53)
+- [ ] PPT 제출 시점(11-28 마감에 같이 내는지) 운영진 확인(AI Solutions Architect)
+- [ ] 11-28 오전 Data Scientist 릴리스 따라 하기
+- [ ] 11-30 하루 상한 올림·복구와 D10 결정(Cloud Engineer)
