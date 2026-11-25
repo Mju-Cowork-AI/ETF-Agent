@@ -209,14 +209,17 @@ def finalize_plan(plan: Plan, text: str) -> Plan:
       사실만 답하고 나머지는 refuse로 거절 문장을 붙인다(decisions.md 'refuse 범위').
     - 사실 의도가 없으면 예전처럼 배타 의도 하나(고위험 > 추천 > 범위 밖).
     - 안전장치: 규칙이 고위험을 잡았는데 계획이 고위험을 명시하지 않았으면 고위험만(사실 요청이
-      있는지 계획을 믿을 수 없으므로 예전 동작을 지킨다).
+      있는지 계획을 믿을 수 없으므로 예전 동작을 지킨다). 단, 계획이 범위 밖만 적었으면 그대로 둔다.
+      범위 밖도 답하지 않는 고정 문구라 안전하고, ETF가 아닌 자산('비트코인 사야 할까?')은
+      매수 판단 문구보다 범위 밖 안내가 맞다.
     """
     intents, refuse = list(plan.intents), list(plan.refuse)
     if Intent.BLOCKED in intents:
         return replace(plan, intents=[Intent.BLOCKED.value], refuse=[])
     facts = [i.value for i in AGENT_INTENTS if i in intents]
     risky = [r for r in REFUSABLE if r in intents or r in refuse]
-    if is_high_risk(text) and Intent.HIGH_RISK not in risky:
+    only_out_of_scope = not facts and risky == [Intent.OUT_OF_SCOPE]
+    if is_high_risk(text) and Intent.HIGH_RISK not in risky and not only_out_of_scope:
         return replace(plan, intents=[Intent.HIGH_RISK.value], refuse=[])
     if facts and risky:
         return replace(plan, intents=facts, refuse=risky)
