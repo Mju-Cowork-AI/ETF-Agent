@@ -28,5 +28,8 @@ AI Engineer 초안을 확정한 형식입니다(11-19, [decisions.md](decisions.
 ## 2. 부족 판정
 
 ```json
-{"sufficient": false, "reasons": [{"type": "missing_field|zero_results|low_score|unresolved_entity", ...}]}
+{"sufficient": false, "reasons": [{"type": "missing_field|zero_results", ...}]}
 ```
+
+- **코드가 만드는 사유:** `zero_results`(조건 검색 결과 0건)와 `missing_field`(계획한 지표가 수집 결과에 없음) 2종입니다(`app/agents/sufficiency.py`).
+- **`low_score`(문서 점수 낮음)·`unresolved_entity`(ETF 이름 애매):** 11-22 범위 조정 3차로 재계획하지 않고 바로 고정 문구로 처리합니다. 부족 사유로 만들지 않습니다.

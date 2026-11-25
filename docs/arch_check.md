@@ -6,7 +6,7 @@
 - **비교한 문서:** [plan.md](plan.md)(2장 구조·흐름, 4장 안전장치), [README.md](../README.md), [rfp_scope.md](rfp_scope.md), [decisions.md](decisions.md), [interface.md](interface.md), [guard_rules.md](guard_rules.md), [infra/azure/README.md](../infra/azure/README.md)
 - **비교한 코드:** `apps/api`(그래프·도구·가드·개인정보 차단·재계획), `apps/web`, `infra/`, `.github/workflows/`, `settings.py`, `.env.example`
 - **배포 확인(2026-11-24):** 웹 <https://etf-agent.pages.dev> 응답 200, API `/health` 응답 `{"status":"ok","db":"ok"}`. 키·비밀값은 보지 않았습니다.
-- 3장 가운데 AI Solutions Architect 문서(plan.md 2-1·2-6·4장 3단계, interface.md 되묻기·답변 방식, grading.md 숫자 대조 출처)는 이 PR에서 고쳤습니다. 다른 역할의 문서와 코드는 고치지 않았습니다.
+- 3장 가운데 AI Solutions Architect 문서(plan.md, interface.md, grading.md, rfp_scope.md, README.md)는 이 PR에서 고쳤습니다. 다른 역할의 문서와 코드는 고치지 않았습니다.
 
 ## 1. 실제 동작 경로
 
@@ -66,13 +66,13 @@
 |---|---|---|
 | 인젝션·해킹 차단 위치 | 문서는 `preprocess`에서 개인정보와 함께 막는다고 그림. 실제로 `preprocess`는 개인정보만 막고, 해킹·불법·지침 무력화는 `orchestrate`의 `plan`에서 규칙으로 먼저 걸러 LLM 없이 `blocked`로 보냄. 차단이면 문서 선검색(임베딩)도 건너뜀 | [plan.md](plan.md) 2-1 흐름도 → **고침(이 PR)** |
 | `finalize` 노드 | 문서에는 `finalize`(기준일·고지·거절 문장)가 있지만 그래프에 없음. 고지·거절 문장은 `compose`가 붙이고, 기준일은 도구가 만든 표에 붙음. 가드는 붙인 뒤의 답을 검사함 | [plan.md](plan.md) 2-1 흐름도 → **고침(이 PR)** |
-| 안전 답변의 내용 | 문서는 "DB 값 표(LLM 0회)". 실제는 고정 문구(`safe_answer.md`: 답하기 어렵다는 안내 + 문의 채널 + 투자 권유 아님). LLM 0회는 같음 | [plan.md](plan.md) 2-1·4장 3단계 → **고침(이 PR)**. [rfp_scope.md](rfp_scope.md) "오류 대응"·"장애 분류·복구" 행은 남음 |
-| 검증 모델을 부르는 조건 | 문서는 모든 생성 답변을 검증한다고 읽힘. 실제로는 규칙에 걸리면 검증 모델을 부르지 않고 바로 반려, 설명 문장 없이 표·목록만인 답과 일반 대화는 검증하지 않음(`agents/guard/__init__.py`) | [plan.md](plan.md) 2-1, 2-6 → **고침(이 PR)**. 4장 2단계는 남음 |
+| 안전 답변의 내용 | 문서는 "DB 값 표(LLM 0회)". 실제는 고정 문구(`safe_answer.md`: 답하기 어렵다는 안내 + 문의 채널 + 투자 권유 아님). LLM 0회는 같음 | [plan.md](plan.md) 2-1·4장 3단계, [rfp_scope.md](rfp_scope.md) "오류 대응"·"장애 분류·복구" 행 → **고침(이 PR)** |
+| 검증 모델을 부르는 조건 | 문서는 모든 생성 답변을 검증한다고 읽힘. 실제로는 규칙에 걸리면 검증 모델을 부르지 않고 바로 반려, 설명 문장 없이 표·목록만인 답과 일반 대화는 검증하지 않음(`agents/guard/__init__.py`) | [plan.md](plan.md) 2-1, 2-6, 4장 2단계 → **고침(이 PR)** |
 | 검증 모델 판정 불가 | 판정하지 못하면 재작성 없이 바로 안전 답변 | [plan.md](plan.md) 2-1(문서와 같음, 확인만) |
-| 멀티턴 보정 | ETF 없이 항목만 묻는 후속 질문은 직전 ETF의 정보 질문으로 봄. 직전 답이 차단이면 범위 밖 후속 질문도 계속 차단 | [plan.md](plan.md) 1-2(D16은 "최근 4턴, 직전 ETF 3개"만 적음) |
-| FAQ 답변 캐시 | 가드를 통과한 FAQ 단독 답변을 수준별로 메모리에 캐시하고, 다시 쓸 때 고지만 다시 검사 | [plan.md](plan.md) 2장(README "데이터 갱신 뒤 재시작"에만 언급) |
-| 일반 대화 모드 | `GENERAL_CHAT_ENABLED`(로컬 전용)이면 범위 밖 질문을 일반 대화로 답함. 배포에서는 꺼져 있음 | [plan.md](plan.md) 1-2("일반 잡담 모드"는 범위 밖) |
-| 부족 판정 사유 종류 | 문서는 4종(`missing_field`·`zero_results`·`low_score`·`unresolved_entity`). 코드는 2종만 만듦 | [interface.md](interface.md) 2장 |
+| 멀티턴 보정 | ETF 없이 항목만 묻는 후속 질문은 직전 ETF의 정보 질문으로 봄. 직전 답이 차단이면 범위 밖 후속 질문도 계속 차단 | [plan.md](plan.md) 1-2 → **고침(이 PR)** |
+| FAQ 답변 캐시 | 가드를 통과한 FAQ 단독 답변을 수준별로 메모리에 캐시하고, 다시 쓸 때 고지만 다시 검사 | [plan.md](plan.md) 2-1 → **고침(이 PR)** |
+| 일반 대화 모드 | `GENERAL_CHAT_ENABLED`(로컬 전용)이면 범위 밖 질문을 일반 대화로 답함. 배포에서는 꺼져 있음 | [plan.md](plan.md) 1-2 → **고침(이 PR)**(범위 밖이며 로컬 전용이라고 적음) |
+| 부족 판정 사유 종류 | 문서는 4종(`missing_field`·`zero_results`·`low_score`·`unresolved_entity`). 코드는 2종만 만듦 | [interface.md](interface.md) 2장 → **고침(이 PR)** |
 | 되묻기 연결 예정 문구 | "재계획 루프 PR에서 연결"이라고 적혀 있으나 #47 뒤에도 연결 안 됨 | [interface.md](interface.md) 1장 → **고침(이 PR)**: 계산만 하고 그래프에서 쓰지 않음, 새 기능 금지로 남은 일 |
 | 웹 배포 담당 | infra 문서는 "웹은 Cloud Engineer만 배포할 수 있다". 실제로는 `main` 머지 시 `deploy.yml`이 웹도 배포(#43, 11-24 결정) | [infra/azure/README.md](../infra/azure/README.md) 57행(Cloud Engineer 문서) |
 | 지금 배포된 이미지 | infra 문서 12행은 11-22 재배포 기준. 지금 배포된 이미지 태그는 **확인 필요**(자동 배포 뒤 바뀜) | [infra/azure/README.md](../infra/azure/README.md) 12행(Cloud Engineer 문서) |
