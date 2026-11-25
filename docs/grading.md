@@ -40,7 +40,7 @@
 
 답변 속 수치 하나하나를 DB 값과 대조합니다(수치 정확도 = 맞은 수치 ÷ 대조한 수치). 판정은 가드 ① 숫자 대조 규칙과 같게 합니다.
 
-> 아래 반올림·상대 오차 규칙의 출처는 숫자 대조 PR 브랜치(`feat/number-check`, **머지 전**)의 `prompts/guard/rules.yaml`·`rules.py`입니다. 머지할 때 값이 바뀌면 이 장도 함께 고칩니다.
+> 아래 반올림·상대 오차 규칙의 출처는 `dev`에 들어온 숫자 대조의 [`prompts/guard/rules.yaml`](../prompts/guard/rules.yaml)(`numbers`, `rel_tolerance: 0.05`)·`rules.py`입니다. 값이 바뀌면 이 장도 함께 고칩니다.
 
 | 규칙 | 내용 | 예 |
 |---|---|---|
