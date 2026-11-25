@@ -250,3 +250,28 @@ async def test_price_override_keeps_news_and_no_entity_cases() -> None:
     other = FakeLLM(script={"classify": [_plan_json(intents=["out_of_scope"])]})
     p = await plan(other, "비트코인 현재가 알려줘", has_entity=False)
     assert p.intents == ["out_of_scope"]
+
+
+# --- 11-24 개발용 평가 반영 ---
+
+
+def test_safety_net_keeps_out_of_scope_for_non_etf_asset() -> None:
+    """ETF가 아닌 자산의 매수 질문은 계획이 범위 밖으로 보면 그대로 둔다(둘 다 답하지 않는 고정 문구)."""
+    p = finalize_plan(Plan(intents=["out_of_scope"]), "비트코인 지금 사야 할까?")
+    assert p.intents == ["out_of_scope"] and p.refuse == []
+
+
+def test_safety_net_still_forces_high_risk_when_plan_answers_facts() -> None:
+    """사실 의도와 범위 밖을 같이 적었으면 안전장치가 그대로 고위험으로 바꾼다."""
+    p = finalize_plan(Plan(intents=["etf_info", "out_of_scope"]), "샘플 코스피200 지금 사야 할까?")
+    assert p.intents == ["high_risk"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["ETF 분배금에도 과세가 되나요?", "해외 ETF 팔면 양도세 내?", "ETF 세금 구조 알려줘"],
+)
+def test_tax_questions_are_high_risk_even_if_plan_says_faq(text: str) -> None:
+    """세금은 일반 원칙을 묻더라도 고정 문구로 답한다(평가셋 gen24 결정)."""
+    p = finalize_plan(Plan(intents=["faq"]), text)
+    assert p.intents == ["high_risk"]

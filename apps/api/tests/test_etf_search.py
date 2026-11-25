@@ -173,3 +173,12 @@ def test_list_table_shows_net_assets_with_date_when_sorted_by_it() -> None:
     assert "순자산" not in compare.list_table([e])
     table = compare.list_table([e], net_assets=True)
     assert "순자산(기준일)" in table and "(2026-10-30)" in table
+
+
+def test_list_table_shows_distribution_cycle() -> None:
+    """'월배당 ETF 뭐가 있어?'에 답하려면 검색 목록에 분배주기가 있어야 한다(11-24 평가 gen17)."""
+    from app.repositories.models import EtfMaster
+
+    e = EtfMaster(ticker="458730", name="TIGER 미국배당다우존스", distribution_cycle="월(매월)")
+    table = compare.list_table([e])
+    assert "| 분배주기 |" in table and "월(매월)" in table
