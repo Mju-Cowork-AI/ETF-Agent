@@ -166,18 +166,18 @@
 
 - [x] decisions.md에 결정 기록(AI Solutions Architect). 11-18·11-19·11-20·11-21·11-22·11-24 기록
 - [ ] 작업 카드 만들기: 담당자 1명 = 브랜치 1개(전원). [roles.md](roles.md) 3장의 (a)·(b)·(c)를 먼저 만듭니다
-- [ ] README 팀원별 역할에 이름 채우기(AI Solutions Architect, 제출 전)
+- [x] README 팀원별 역할에 이름 채우기(AI Solutions Architect, 제출 전)
 - [x] 코드 들여오기(Cloud Engineer, #6)
 - [x] `.env.example` 변수 이름을 들여온 코드에 맞추기(Cloud Engineer, #6)
 - [x] 웹 배포 방식 정하고 D9 고치기(Cloud Engineer가 Cloudflare Pages로 정함, D9 수정 11-20)
 - [x] `azure_models.md` 6장 추천표를 모델 배치 결정에 맞게 갱신(Cloud Engineer, 11-24. 결정된 배치는 5장에 넣음)
 - [x] 익명 발급 반복 호출 제한 결정(이슈 #18): 넣지 않음(11-22)
-- [ ] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9)
-- [ ] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설)
-- [ ] 11-21 리허설: 시드 다음 `python -m jobs.load_real` → API 재시작 → 손 테스트 12문항(캐시 끔), 단계별 시간을 트레이스로 확인(Cloud Engineer)
+- [x] 웹 배포 계정에 팀원 1명 추가 또는 재배포 방법 문서화(Cloud Engineer, D9). 계정 초대 대신 `main` 머지 시 자동 배포(#43)와 [git-flow.md](git-flow.md) "릴리스" 절차로 정함(11-24)
+- [x] API(한국)·DB(일본) 응답 시간 측정, p90 10초 목표(Cloud Engineer, 11-21 리허설). 12문항 p90 6.25초, 최대 9.6초([infra/azure/README.md](../infra/azure/README.md)). 시험용 평가(11-26)에서 다시 잼
+- [x] 11-21 리허설: 시드 다음 `python -m jobs.load_real` → API 재시작 → 손 테스트 12문항(캐시 끔), 단계별 시간을 트레이스로 확인(Cloud Engineer)
 - [ ] 계획 JSON `refuse`에 범위 밖 부분(공시·뉴스 등) 반영(AI Engineer, 11-23 계획 JSON 도입 때)
-- [ ] 비교·순위 답변에 상품별 순자산 기준일 표시(담당은 채팅방에서 정함)
-- [ ] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, #45)
+- [x] 비교·순위 답변에 상품별 순자산 기준일 표시(담당은 채팅방에서 정함). 비교표에 순자산 기준일 행이 나옴(11-25 배포 URL에서 확인)
+- [x] 사용자 테스트 설문을 12문항으로 줄이기(AI Solutions Architect, 11-22 결정, #45)
 - [ ] 사용자 테스트 구글 폼 만들기(Cloud Engineer, 11-26까지)
 - [x] 재계획 루프 머지(AI Engineer, #47)
 - [x] D3 로컬 LLM 실측(계획 단계만, #53)
