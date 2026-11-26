@@ -141,35 +141,53 @@ def test_test_split_hides_values_on_mismatch():
     assert "\u2717" in output
 
 
-# ---- _test 파일 읽기 ----
+# ---- split 칸으로 개발용·시험용 분리 ----
 
 
-def test_reads_private_test_file(tmp_path: Path):
-    # 개발용
-    dev = [{"id": "g01", "split": "dev", "question": "q"}]
-    (tmp_path / "general.jsonl").write_text(
-        json.dumps(dev[0], ensure_ascii=False) + "\n", encoding="utf-8"
-    )
-    # 시험용 private/
-    priv = tmp_path / "private"
-    priv.mkdir()
-    t1 = {"id": "p01", "split": "test", "question": "q1"}
-    t2 = {"id": "p02", "split": "test", "question": "q2"}
-    (priv / "general.jsonl").write_text(json.dumps(t1, ensure_ascii=False) + "\n", encoding="utf-8")
-    (priv / "general_test.jsonl").write_text(
-        json.dumps(t2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+def test_split_field_separates_dev_and_test(tmp_path: Path):
+    """general.jsonl 에 dev 와 test 가 섞여 있으면 split 칸대로 나뉜다."""
+    lines = [
+        json.dumps({"id": "g01", "split": "dev", "question": "q1"}, ensure_ascii=False),
+        json.dumps({"id": "g02", "split": "test", "question": "q2"}, ensure_ascii=False),
+        json.dumps({"id": "g03", "split": "test", "question": "q3"}, ensure_ascii=False),
+    ]
+    (tmp_path / "general.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     dev_items, test_items, warns = load_items(tmp_path)
-    assert len(dev_items) == 1
-    assert {it["id"] for it in test_items} == {"p01", "p02"}
+    assert [it["id"] for it in dev_items] == ["g01"]
+    assert {it["id"] for it in test_items} == {"g02", "g03"}
+    assert all(it["_split"] == "dev" for it in dev_items)
+    assert all(it["_split"] == "test" for it in test_items)
     assert not warns
 
 
-def test_missing_private_warns(tmp_path: Path):
-    (tmp_path / "general.jsonl").write_text("{}\n", encoding="utf-8")
-    _, _, warns = load_items(tmp_path)
-    assert any("시험용 파일 없음" in w for w in warns)
+def test_private_folder_ignored(tmp_path: Path):
+    """private 폴더에 파일이 있어도 읽지 않는다."""
+    (tmp_path / "general.jsonl").write_text(
+        json.dumps({"id": "g01", "question": "q"}, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    priv = tmp_path / "private"
+    priv.mkdir()
+    (priv / "general.jsonl").write_text(
+        json.dumps({"id": "p01", "split": "test", "question": "q"}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    dev_items, test_items, _ = load_items(tmp_path)
+    assert len(dev_items) == 1
+    assert len(test_items) == 0
+
+
+def test_missing_split_defaults_to_dev(tmp_path: Path):
+    """split 칸이 없는 문항은 개발용으로 처리한다."""
+    (tmp_path / "general.jsonl").write_text(
+        json.dumps({"id": "g01", "question": "q"}, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+    dev_items, test_items, _ = load_items(tmp_path)
+    assert len(dev_items) == 1
+    assert dev_items[0]["_split"] == "dev"
+    assert len(test_items) == 0
 
 
 # ---- ETF 이름이 question에만 있는 문항 ----
