@@ -9,7 +9,7 @@
 API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 실제로 실행한 것이다.
 비밀 값은 Key Vault(`kv-etf-agent-b084`)에만 있고, 앱은 관리 ID로 읽는다.
 
-> 지금 배포된 이미지는 `etf-agent-api:774930b`(`dev`, #37까지)다. 11-22에 다시 빌드해 올렸다(아래 "11-22 재배포").
+> 지금 배포된 이미지는 `etf-agent-api:ba2f2f9`(`main`, 릴리스 `v1.2`, #62)다(11-27 확인). 태그는 배포한 `main` 커밋의 짧은 해시이고, `main`에 머지할 때마다 자동 배포가 새 태그로 바꾼다(아래 "자동 배포"). 지금 값은 `az containerapp show -g rg-etf-agent -n ca-etf-agent-api --query "properties.template.containers[0].image"`로 본다.
 
 ### 리소스
 
@@ -17,7 +17,7 @@ API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 �
 | --- | --- | --- | --- |
 | 리소스 그룹 | `rg-etf-agent` | koreacentral | 모델 리소스만 `etf-agent-local-rg`에 있다 |
 | Key Vault | `kv-etf-agent-b084` | koreacentral | `LLM-API-KEY`, `DATABASE-URL`, `LOCAL-JWT-SECRET`, `ADMIN-TOKEN` 등 |
-| 모델(Azure OpenAI) | `etf-agent-local-22eaff` | koreacentral | 배포: `gpt-6-sol`(생성), `gpt-6-luna`(검증), `text-embedding-3-small`. gpt-6 두 배포는 각 50K TPM |
+| 모델(Azure OpenAI) | `etf-agent-local-22eaff` | koreacentral | 배포: `gpt-6-sol`(생성), `gpt-6-luna`(계획·검증), `text-embedding-3-small`. gpt-6 두 배포는 각 50K TPM |
 | DB | `pg-etf-agent-japaneast` | **Japan East** | PostgreSQL 17, B1ms, 32GB. koreacentral은 이 구독에서 B1ms 생성이 `SkuNotAvailable`로 거부되어 일본 동부에 만들었다 |
 | 컨테이너 레지스트리 | `acretfagentb084` | koreacentral | Basic |
 | 로그 | `log-etf-agent` | koreacentral | Log Analytics |
@@ -54,7 +54,7 @@ API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 �
 
 사전 조건: `az login`, Docker(Apple Silicon은 `linux/amd64`로 빌드), 웹은 `npx wrangler login`.
 
-웹(Cloudflare Pages `etf-agent`)은 Cloud Engineer의 개인 Cloudflare 계정에 있어, 지금은 Cloud Engineer만 배포할 수 있다. 다른 팀원이 배포하려면 Cloud Engineer가 그 계정에 구성원으로 초대해야 한다.
+웹(Cloudflare Pages `etf-agent`)은 평소 `main`에 머지하면 자동으로 배포된다(아래 "자동 배포"). 배포에는 GitHub Secrets의 Cloudflare 토큰을 쓰므로, 팀원 누구나 릴리스 PR 머지나 Actions → `deploy` → Run workflow(`main`)로 배포할 수 있다. 프로젝트는 Cloud Engineer의 개인 Cloudflare 계정에 있고 계정 초대는 하지 않는다(11-24 결정). 그래서 아래 4)의 손 배포(`wrangler login`)만 Cloud Engineer가 할 수 있다.
 
 ```bash
 # 1) API 이미지 빌드·푸시 (레포 루트에서). 무료 구독은 `az acr build`가 막혀 있어 로컬에서 빌드한다
