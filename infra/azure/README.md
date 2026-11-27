@@ -9,7 +9,7 @@
 API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 실제로 실행한 것이다.
 비밀 값은 Key Vault(`kv-etf-agent-b084`)에만 있고, 앱은 관리 ID로 읽는다.
 
-> 지금 배포된 이미지는 `etf-agent-api:ba2f2f9`(`main`, 릴리스 `v1.2`, #62)다(11-27 확인). 태그는 배포한 `main` 커밋의 짧은 해시이고, `main`에 머지할 때마다 자동 배포가 새 태그로 바꾼다(아래 "자동 배포"). 지금 값은 `az containerapp show -g rg-etf-agent -n ca-etf-agent-api --query "properties.template.containers[0].image"`로 본다.
+> 지금 배포된 이미지는 `etf-agent-api:bd08d37`(`main`, 릴리스 `v1.3`, #74)다(11-27 확인). 태그는 배포한 `main` 커밋의 짧은 해시이고, `main`에 머지할 때마다 자동 배포가 새 태그로 바꾼다(아래 "자동 배포"). 지금 값은 `az containerapp show -g rg-etf-agent -n ca-etf-agent-api --query "properties.template.containers[0].image"`로 본다.
 
 ### 리소스
 
