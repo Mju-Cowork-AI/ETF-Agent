@@ -296,3 +296,58 @@ async def test_region_unverified_products_are_marked(deps: AgentDeps) -> None:
         deps, "총보수 0.1% 이하 해외 주식 ETF 찾아줘"
     )  # 분류에 지역이 있으면 표시 없음
     assert "확인하지 못했습니다" not in plain["answer"]
+
+
+# 11-27 사용자 테스트: 브랜드는 말했는데 상품을 못 찾은 질문
+def _brand_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+    """샘플 DB 종목코드에 실데이터처럼 브랜드 이름을 붙인 카탈로그로 바꾼다."""
+    from app.agents import etf_info as etf_info_mod
+    from app.agents import graph as graph_mod
+    from app.agents.preprocess import CatalogEntry, compact
+
+    names = {
+        "900010": "KODEX 200",
+        "900040": "KODEX 미국나스닥100",
+        "900080": "TIGER 미국배당다우존스",
+    }
+    catalog = [CatalogEntry(t, n, (compact(n),), None, None) for t, n in names.items()]
+
+    async def fake_catalog(_maker: object) -> list[CatalogEntry]:
+        return catalog
+
+    monkeypatch.setattr(graph_mod, "load_catalog", fake_catalog)
+    monkeypatch.setattr(etf_info_mod, "load_catalog", fake_catalog)
+
+
+async def test_unknown_product_does_not_attach_previous_etf(
+    deps: AgentDeps, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _brand_catalog(monkeypatch)
+    prior = {"context_tickers": ["900080"], "history": [{"role": "user", "content": "이전 질문"}]}
+    st = await ask(deps, "KODEX 미국S&P500 총보수 알려줘", **prior)
+    assert st["intents"] == ["etf_info"]
+    assert "데이터에 없어요" in st["answer"]
+    assert "정보**" not in st["answer"] and "검색 결과" not in st["answer"]  # 상관없는 표 없음
+    assert st["verdict"] == "pass"
+
+
+async def test_brand_only_question_shows_that_brand(
+    deps: AgentDeps, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _brand_catalog(monkeypatch)
+    prior = {"context_tickers": ["900080"], "history": [{"role": "user", "content": "이전 질문"}]}
+    st = await ask(deps, "KODEX 거 총보수 알려줘", **prior)
+    assert st["intents"] == ["etf_info"]
+    assert [e.ticker for e in st["entities"]] == [
+        "900010",
+        "900040",
+    ]  # 직전 TIGER가 아니라 KODEX 둘
+    assert "2개 상품 비교" in st["answer"]
+
+
+async def test_korean_brand_name_is_recognized(
+    deps: AgentDeps, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _brand_catalog(monkeypatch)
+    st = await ask(deps, "타이거 미국배당다우존스 총보수 알려줘")
+    assert [e.ticker for e in st["entities"]] == ["900080"]

@@ -192,7 +192,7 @@ async def synthesize(state: GraphState, deps: AgentDeps) -> Composed:
 
     # 재생성 때 표·목록만 있는 답변은 설명 문장 없이 낸다
     prose = ""
-    if docs or not state.get("retry_feedback"):
+    if (docs or not state.get("retry_feedback")) and not all(r.skip_prose for r in found):
         try:
             prose = await _write(state, deps, found, docs=docs)
         except LLMError as e:
