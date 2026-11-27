@@ -58,7 +58,7 @@ class EtfEntity:
     name: str
     matched: str  # 질문에서 매칭된 표현(정규화)
     score: float
-    method: str  # exact | ticker | fuzzy | context
+    method: str  # exact | ticker | fuzzy | context | plan | brand
 
 
 @dataclass(slots=True)
@@ -99,6 +99,7 @@ class AgentResult:
     disclaimers: list[str] = field(default_factory=list)
     cached: bool = False
     found: bool = True  # 답에 쓸 자료를 찾았는지(False면 content는 안내 문구)
+    skip_prose: bool = False  # 설명 문장(LLM) 없이 content만 낸다(시세 안내가 두 번 나오지 않게)
     # 부족 판정(docs/replan_spec.md)에 쓰는 신호. 값은 담지 않는다.
     zero_results: bool = False  # 조건 검색 결과 0건(조건을 못 알아들은 경우 포함)
     missing_fields: list[str] = field(
@@ -143,6 +144,7 @@ class GraphState(TypedDict, total=False):
     history: list[dict[str, Any]]  # [{"role","content"(마스킹됨),"meta"}]
     context_tickers: list[str]  # 직전 턴 엔티티(멀티턴)
     entities: list[EtfEntity]
+    unknown_etf: bool  # 브랜드는 있는데 데이터에 없는 상품 이름('KODEX 미국S&P500')
     intents: list[str]
     intent_source: str  # llm | rules
     plan: dict[str, Any]  # 계획 JSON 요약(interface.md). 질문 문장·검색어는 담지 않는다

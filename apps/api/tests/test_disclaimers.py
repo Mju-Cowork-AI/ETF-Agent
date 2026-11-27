@@ -7,6 +7,7 @@ from app.agents import etf_info
 from app.agents.compose import disclaimer_texts
 from app.agents.graph import run_graph
 from app.agents.state import AgentDeps
+from app.llm.fake import FakeLLM
 from app.repositories.models import EtfMaster
 from app.tools import price_lookup
 
@@ -83,6 +84,22 @@ async def test_price_question_without_price_data_says_not_provided(
     st = await ask(deps, "샘플 코스피200 현재가 얼마야?")
     assert st["verdict"] == "pass", st.get("guard_reasons")
     assert etf_info.NO_PRICE_NOTE in st["answer"]
+
+
+async def test_price_notice_appears_once_on_top_without_llm_prose(
+    deps: AgentDeps, fake_llm: FakeLLM, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 11-27 사용자 테스트: 안내가 설명 문장과 표 아래에 두 번 나와 입문 참가자가 이해하지 못했다
+    async def no_prices(session, tickers):
+        return {}
+
+    monkeypatch.setattr(price_lookup, "latest", no_prices)
+    st = await ask(deps, "샘플 코스피200 오늘 종가 알려줘")
+    assert st["verdict"] == "pass", st.get("guard_reasons")
+    assert st["answer"].count(etf_info.NO_PRICE_NOTE) == 1
+    assert st["answer"].startswith(etf_info.NO_PRICE_NOTE)  # 표보다 먼저
+    assert "NAV" not in etf_info.NO_PRICE_NOTE  # 입문자가 모르는 용어 없이
+    assert fake_llm.count("answer") == 0  # 같은 안내를 다시 쓰는 설명 문장을 만들지 않는다
 
 
 async def test_price_question_with_price_data_has_no_notice(deps: AgentDeps) -> None:

@@ -11,9 +11,11 @@ from app.tools import compare, etf_search, price_lookup
 
 NAME = "etf_info"
 SEARCH_LIMIT = 10
+# 입문 참가자 2명이 이전 문구("시세(종가·NAV·괴리율·거래량)를 제공하지 않습니다")를 이해하지
+# 못했다(11-27 사용자 테스트 T4). 용어 없이 쉬운 말로 바꿨다.
 NO_PRICE_NOTE = (
-    "이 서비스는 시세(종가·NAV·괴리율·거래량)를 제공하지 않습니다. "
-    "현재 시세는 운용사 홈페이지나 한국거래소에서 확인해 주세요."
+    "지금 가격이나 오늘 종가 같은 시세는 알려 드리지 않아요. "
+    "증권사 앱이나 한국거래소에서 확인해 주세요."
 )
 _PRICE_WORDS = re.compile(
     r"시세|종가|현재가|시가(?!\s*총액)|주가|가격|얼마에\s*거래|nav|괴리율|거래량", re.I
@@ -51,6 +53,18 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
                 notes.append(NO_PRICE_NOTE)
         else:
             catalog = await load_catalog(deps.maker)
+            if state.get("unknown_etf"):
+                # 브랜드는 있는데 데이터에 없는 상품(11-27 사용자 테스트). 조건 검색으로 넘어가면
+                # '미국' 같은 말이 조건이 되어 상관없는 표가 붙는다. 재계획하지 않는다.
+                names = ", ".join(c.name for c in catalog)
+                return AgentResult(
+                    agent=NAME,
+                    found=False,
+                    content=(
+                        "질문하신 상품은 이 서비스의 데이터에 없어요. "
+                        f"지금 안내할 수 있는 ETF는 {names}입니다."
+                    ),
+                )
             indexes = sorted({c.underlying_index for c in catalog if c.underlying_index})
             filters = etf_search.parse_filters(state["normalized"], indexes)
             filters = etf_search.merge_plan_conditions(
@@ -121,7 +135,13 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
         as_of_line = f"기준일: {all_as_of}"
     else:
         as_of_line = "출처: ETF 마스터(샘플)" if is_sample else "출처: ETF 마스터"
-    data = "\n\n".join([f"**{title}**", table, *notes, as_of_line])
+    # 시세를 물었는데 시세가 없으면 안내를 맨 위에 한 번만 둔다. 설명 문장(LLM)을 쓰면 같은 안내를
+    # 자기 말로 한 번 더 써서 위아래로 두 번 나왔다(11-27 사용자 테스트). 표가 답을 대신한다.
+    price_note = NO_PRICE_NOTE in notes
+    if price_note:
+        notes.remove(NO_PRICE_NOTE)
+    head = [NO_PRICE_NOTE] if price_note else []
+    data = "\n\n".join([*head, f"**{title}**", table, *notes, as_of_line])
 
     # 출처 제목: 샘플이면 "(샘플)", 실데이터면 CSV 출처를 중복 없이 모은다
     if is_sample:
@@ -148,6 +168,7 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
         # 샘플 상품이 하나라도 있으면 '개발용 샘플 데이터' 고지를 붙인다(실데이터만이면 안 붙음)
         disclaimers=["sample_data"] if any(e.source == "sample" for e in etfs) else [],
         missing_fields=missing_fields(etfs, state.get("plan_metrics") or []) if tickers else [],
+        skip_prose=price_note,
     )
 
 

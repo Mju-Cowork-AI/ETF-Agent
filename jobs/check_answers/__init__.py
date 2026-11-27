@@ -73,26 +73,25 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 def load_items(
     eval_dir: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
-    """Return (dev_items, test_items, warnings)."""
+    """Return (dev_items, test_items, warnings).
+
+    general.jsonl 의 각 문항을 ``split`` 칸으로 분류한다.
+    split=="test" → 시험용, 그 외(없거나 "dev") → 개발용.
+    """
     base = eval_dir or EVAL_DIR
     warns: list[str] = []
 
-    dev_items = read_jsonl(base / "general.jsonl")
-    for it in dev_items:
-        it["_split"] = "dev"
+    all_items = read_jsonl(base / "general.jsonl")
 
+    dev_items: list[dict[str, Any]] = []
     test_items: list[dict[str, Any]] = []
-    private_dir = base / "private"
-    found = False
-    for fname in ("general.jsonl", "general_test.jsonl"):
-        p = private_dir / fname
-        if p.exists():
-            found = True
-            for it in read_jsonl(p):
-                it["_split"] = "test"
-                test_items.append(it)
-    if not found:
-        warns.append(f"시험용 파일 없음: {private_dir}")
+    for it in all_items:
+        if it.get("split") == "test":
+            it["_split"] = "test"
+            test_items.append(it)
+        else:
+            it["_split"] = "dev"
+            dev_items.append(it)
 
     return dev_items, test_items, warns
 
