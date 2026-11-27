@@ -99,6 +99,7 @@ class AgentResult:
     disclaimers: list[str] = field(default_factory=list)
     cached: bool = False
     found: bool = True  # 답에 쓸 자료를 찾았는지(False면 content는 안내 문구)
+    skip_prose: bool = False  # 설명 문장(LLM) 없이 content만 낸다(시세 안내가 두 번 나오지 않게)
     # 부족 판정(docs/replan_spec.md)에 쓰는 신호. 값은 담지 않는다.
     zero_results: bool = False  # 조건 검색 결과 0건(조건을 못 알아들은 경우 포함)
     missing_fields: list[str] = field(
