@@ -44,7 +44,14 @@ from app.agents.orchestrator.rules import (
     is_search,
     refers_to_previous,
 )
-from app.agents.preprocess import load_catalog, normalize, recognize_entities
+from app.agents.preprocess import (
+    brand_of,
+    brand_only,
+    load_catalog,
+    mentioned_brands,
+    normalize,
+    recognize_entities,
+)
 from app.agents.state import (
     AGENT_INTENTS,
     AgentDeps,
@@ -159,8 +166,23 @@ async def orchestrate_node(state: GraphState, config: RunnableConfig) -> dict[st
         if picked := [c for c in codes if c in catalog]:
             update["entities"] = [EtfEntity(t, catalog[t].name, "", 0.0, "plan") for t in picked]
             entities = update["entities"]
-    # 이번 질문에 ETF가 없으면 직전 턴의 ETF를 이어 쓴다(ETF 정보 의도일 때만).
-    if not entities and context and Intent.ETF_INFO in intents:
+    # 브랜드는 말했는데 상품을 못 찾은 경우(11-27 사용자 테스트). 직전 턴 ETF를 이어 쓰지 않는다.
+    # 'KODEX 거'처럼 브랜드만 가리키면 그 브랜드 상품을 모두(최대 3개) 보여 주고(되묻기는 남은 과제),
+    # 'KODEX 미국S&P500'처럼 데이터에 없는 상품 이름이면 없다고 안내한다(엉뚱한 표를 붙이지 않는다).
+    brands = mentioned_brands(state["normalized"])
+    if not entities and brands and Intent.ETF_INFO in intents:
+        catalog_list = await load_catalog(deps.maker)
+        if all(brand_only(state["normalized"], b) for b in brands):
+            picked = [c for c in catalog_list if brand_of(c.name) in brands][:3]
+            if picked:
+                update["entities"] = [
+                    EtfEntity(c.ticker, c.name, brand_of(c.name), 0.0, "brand") for c in picked
+                ]
+                entities = update["entities"]
+        if not entities:
+            update["unknown_etf"] = True
+    # 이번 질문에 ETF가 없으면 직전 턴의 ETF를 이어 쓴다(ETF 정보 의도일 때만, 브랜드를 말하지 않았을 때만).
+    if not entities and context and Intent.ETF_INFO in intents and not brands:
         catalog = {c.ticker: c for c in await load_catalog(deps.maker)}
         # 조건 검색('총보수 0.1% 이하 해외 주식 ETF 찾아줘')은 직전 ETF의 후속 질문이 아니다.
         # 직전 ETF를 넣으면 검색 대신 그 ETF의 정보표가 다시 나온다.

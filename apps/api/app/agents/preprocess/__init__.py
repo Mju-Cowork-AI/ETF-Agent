@@ -15,6 +15,29 @@ _KEEP = re.compile(r"[^0-9A-Za-z가-힣\s%.,?!&+\-~/()]")
 _TICKER = re.compile(r"(?<!\d)(\d{6})(?!\d)")
 _WS = re.compile(r"\s+")
 
+# 한글로 쓴 브랜드 → 영문. ETF 이름이 영문 브랜드(TIGER·KODEX·ACE)라 '타이거 나스닥100'을
+# 찾지 못했다(11-27 사용자 테스트). 이름 매칭과 브랜드 판별에만 쓰고 질문 문장은 바꾸지 않는다.
+_BRAND_KO = {"타이거": "TIGER", "코덱스": "KODEX", "에이스": "ACE"}
+# 국내 ETF 브랜드. 질문에 브랜드가 있는데 상품을 못 찾으면 '데이터에 없는 상품'으로 본다.
+_BRANDS = (
+    "kodex",
+    "tiger",
+    "ace",
+    "rise",
+    "sol",
+    "plus",
+    "hanaro",
+    "kosef",
+    "arirang",
+    "kbstar",
+    "kindex",
+    "timefolio",
+    "koact",
+)
+_BRAND_RE = re.compile(rf"(?<![a-z])({'|'.join(_BRANDS)})(?![a-z])")
+# 브랜드 뒤에 상품명 대신 '거·것·상품·ETF'나 조사가 오면 그 브랜드 상품 전체를 묻는 질문이다('KODEX 거 총보수')
+_GENERIC_AFTER = r"\s*(?:거|것|꺼|껀|건|상품|etf|쪽|(?:은|는|의)(?=\s|$))"
+
 
 def normalize(text: str) -> str:
     """NFKC(전각→반각), 제어·특수기호 제거, 공백 정리. 숫자·%·소수점은 남긴다."""
@@ -22,6 +45,28 @@ def normalize(text: str) -> str:
     text = _KEEP.sub(" ", text)
     text = re.sub(r"([?!.,])\1+", r"\1", text)  # 반복 기호 축약
     return _WS.sub(" ", text).strip()
+
+
+def brand_en(text: str) -> str:
+    """'타이거 나스닥100' → 'TIGER 나스닥100'(매칭용)."""
+    for ko, en in _BRAND_KO.items():
+        text = text.replace(ko, f" {en} ")
+    return _WS.sub(" ", text).strip()
+
+
+def mentioned_brands(text: str) -> list[str]:
+    """질문에 나온 ETF 브랜드(소문자, 나온 순서). 한글 표기(타이거·코덱스·에이스)도 센다."""
+    return list(dict.fromkeys(_BRAND_RE.findall(brand_en(text).lower())))
+
+
+def brand_only(text: str, brand: str) -> bool:
+    """'KODEX 거', 'KODEX 상품', 'KODEX의'처럼 상품명 없이 브랜드만 가리키는지."""
+    return re.search(rf"(?<![a-z]){brand}{_GENERIC_AFTER}", brand_en(text).lower()) is not None
+
+
+def brand_of(name: str) -> str:
+    """ETF 이름의 브랜드('KODEX 200' → 'kodex')."""
+    return name.split()[0].lower() if name.strip() else ""
 
 
 def compact(text: str) -> str:
@@ -66,7 +111,7 @@ def recognize_entities(
     found: dict[str, EtfEntity] = {}
     pos: dict[str, int] = {}  # 질문 안 위치(언급 순서대로 돌려주기 위함)
     by_ticker = {e.ticker: e for e in catalog}
-    q = compact(text)
+    q = compact(brand_en(text))
 
     for m in _TICKER.finditer(text):
         if (e := by_ticker.get(m.group(1))) is not None:

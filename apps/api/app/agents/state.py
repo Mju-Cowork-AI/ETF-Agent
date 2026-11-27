@@ -58,7 +58,7 @@ class EtfEntity:
     name: str
     matched: str  # 질문에서 매칭된 표현(정규화)
     score: float
-    method: str  # exact | ticker | fuzzy | context
+    method: str  # exact | ticker | fuzzy | context | plan | brand
 
 
 @dataclass(slots=True)
@@ -143,6 +143,7 @@ class GraphState(TypedDict, total=False):
     history: list[dict[str, Any]]  # [{"role","content"(마스킹됨),"meta"}]
     context_tickers: list[str]  # 직전 턴 엔티티(멀티턴)
     entities: list[EtfEntity]
+    unknown_etf: bool  # 브랜드는 있는데 데이터에 없는 상품 이름('KODEX 미국S&P500')
     intents: list[str]
     intent_source: str  # llm | rules
     plan: dict[str, Any]  # 계획 JSON 요약(interface.md). 질문 문장·검색어는 담지 않는다

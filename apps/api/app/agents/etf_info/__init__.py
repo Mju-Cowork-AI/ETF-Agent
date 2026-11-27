@@ -51,6 +51,18 @@ async def run(state: GraphState, deps: AgentDeps) -> AgentResult:
                 notes.append(NO_PRICE_NOTE)
         else:
             catalog = await load_catalog(deps.maker)
+            if state.get("unknown_etf"):
+                # 브랜드는 있는데 데이터에 없는 상품(11-27 사용자 테스트). 조건 검색으로 넘어가면
+                # '미국' 같은 말이 조건이 되어 상관없는 표가 붙는다. 재계획하지 않는다.
+                names = ", ".join(c.name for c in catalog)
+                return AgentResult(
+                    agent=NAME,
+                    found=False,
+                    content=(
+                        "질문하신 상품은 이 서비스의 데이터에 없어요. "
+                        f"지금 안내할 수 있는 ETF는 {names}입니다."
+                    ),
+                )
             indexes = sorted({c.underlying_index for c in catalog if c.underlying_index})
             filters = etf_search.parse_filters(state["normalized"], indexes)
             filters = etf_search.merge_plan_conditions(
