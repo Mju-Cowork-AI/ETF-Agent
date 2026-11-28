@@ -221,7 +221,7 @@ Cloud Engineer가 한다. `az login`이 되어 있고 `rg-etf-agent` 권한이 �
 API=https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io
 
 # 1) 상한 올림. 발표 시작 30분쯤 전, 리허설이 끝난 뒤에 한다
-az containerapp update -g rg-etf-agent -n ca-etf-agent-api --set-env-vars DAILY_QUESTION_LIMIT=<올릴 값>
+az containerapp update -g rg-etf-agent -n ca-etf-agent-api --set-env-vars DAILY_QUESTION_LIMIT=1000
 az containerapp revision list -g rg-etf-agent -n ca-etf-agent-api \
   --query "[?properties.active].{name:name,state:properties.runningState,health:properties.healthState}" -o table
 curl $API/health   # {"status":"ok","db":"ok"}
@@ -241,7 +241,7 @@ az containerapp update -g rg-etf-agent -n ca-etf-agent-api --set-env-vars DAILY_
 - **순서는 상한 올림 다음에 워밍업이다.** 환경변수를 바꾸면 새 리비전이 떠서 API가 재시작되고 메모리 캐시가 비워진다. 진행 중이던 답변도 끊기므로 발표 중에는 바꾸지 않는다.
 - 워밍업으로 빨라지는 것은 개념 질문(FAQ 단독) 답변뿐이고 1시간 동안만이다(위 11-28 확인). 조회·비교 질문은 답변을 캐시하지 않아 매번 실시간으로 만든다. 설명 수준이 다르면 캐시 키도 다르므로 시연 때 쓸 수준으로 넣는다.
 - 그날 질문 수는 DB에 있어 재시작해도 이어진다. 그래서 그날 질문이 이미 200건을 넘은 상태에서 200으로 복구하면, 자정(KST)까지 모든 질문이 안내 문구로 끝난다. 발표 뒤에도 그날 URL을 열어 둬야 하면 복구를 12-01 0시 뒤로 미룬다.
-- 올릴 값은 위 "하루 질문 상한 재계산" 범위(상한 가정으로 하루 약 1,150건) 안에서 정한다.
+- 올릴 값은 1,000건이다(Cloud Engineer, 11-28). 위 "하루 질문 상한 재계산" 범위(상한 가정으로 하루 약 1,150건) 안이고, 1,000건을 다 써도 상한 가정으로 약 $42다.
 
 ## AWS → Azure 대응표
 
