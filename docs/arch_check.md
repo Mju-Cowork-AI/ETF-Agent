@@ -58,7 +58,7 @@
 | 익명 발급 반복 호출 제한 | [decisions.md](decisions.md) "익명 토큰·익명 발급" | 11-22 범위 조정 3차(이슈 #18, 넣지 않음) | 로그인 수단을 붙인 뒤 사용자별 상한 |
 | 무료 예비 모델 체인 | [plan.md](plan.md) 2-5 "장애 대비(선택)" | D14(선택, 약 41h라 하지 않음). 배포는 `FALLBACK_PROVIDER=none` | 예비 체인을 켜되 검증 모델은 생성 모델과 다르게 |
 | 계획만 로컬 모델, 생성·검증은 Azure | [local_llm.md](local_llm.md) 4장 | D3는 계획 단계 실측만(11-24). 계획·생성·검증이 같은 주소(`LLM_BASE_URL`)를 써서 계획 전용 주소 설정이 없음 | 계획 전용 주소 설정 추가 |
-| 시연 질문 캐시 | [decisions.md](decisions.md) D10 | 결정 필요(11-30 하루 상한 조정 때 함께 정함, 11-24) | D10 결정 |
+| 시연 질문 캐시 | [decisions.md](decisions.md) D10 | 결정됨: 실시간 + 발표 직전 워밍업, 전날 캐시 안 함(11-28, D10) | 없음(11-30 절차는 [infra/azure/README.md](../infra/azure/README.md), #79) |
 
 ## 3. 구현했지만 문서에 없거나 문서와 다른 것
 
