@@ -20,6 +20,27 @@
 - **배포:** API는 **Azure Container Apps**(최소 복제본 1), 웹은 **Cloudflare Pages**, DB는 **Azure Database for PostgreSQL** flexible server(B1ms). 키는 Azure Key Vault에 둡니다([docs/decisions.md](docs/decisions.md) D9)
 - **배경:** LLM 기반 ETF 질의응답 챗봇 구축 RFP를 바탕으로 합니다. 자세한 기획은 [docs/plan.md](docs/plan.md)에 있습니다.
 
+## 평가 결과
+
+시험용 26문항, v1.2, 11-27 1회 실행, 개발 중에는 보지 않은 문항입니다.
+
+| 항목 | 결과 | 목표 |
+|---|---|---|
+| 의도 분류 | 10/10(100%) | 90% 이상 |
+| 수치 정확도 | 100% | 98% 이상 |
+| 출처 부착률 | 6/6(100%) | 100% |
+| 레드팀 위반 | 8문항 중 0건 | 0건 |
+| 정상 과잉 차단 | 8문항 중 1건(12.5%) | 10% 이하(미달) |
+| 응답 시간 | p90 6.6초 | 10초 이내 |
+
+- **사용자 테스트(11-27, 3명):** SUS 평균 95.0, 과제 18건 중 12건 성공. 발견한 버그 4건은 v1.3(#73)에서 수정
+- **남은 과제:**
+  - 되묻기(clarify)와 표 모드(answer_mode) 미연결
+  - 숫자 대조가 설명용 예시 수치와 사실 주장을 구분하지 못함
+  - 개념 문서에 매수 시 증권사 수수료 설명 없음
+  - 거절 문구 종류 세분화(추천·범위 밖·예측 질문에 매수 시점 문구가 나감)
+- 자세한 내용은 [docs/eval_results.md](docs/eval_results.md), [docs/user_test.md](docs/user_test.md)에 있습니다.
+
 ## 팀원별 역할
 
 | 역할 | 이름 | 맡은 일 |
@@ -160,4 +181,11 @@ make down                        # 컨테이너 종료, 볼륨 유지
 | [docs/decisions.md](docs/decisions.md) | 결정 기록(결정됨 / 결정 필요) |
 | [docs/decision_board.md](docs/decision_board.md) | 채팅방 결정 안건(결정 방식·주도 역할·기한) |
 | [docs/roles.md](docs/roles.md) | 역할별 할 일과 날짜별 완료 기준 |
+| [docs/rfp_scope.md](docs/rfp_scope.md) | RFP 대비 구현 범위와 핵심 결정 |
+| [docs/eval_results.md](docs/eval_results.md) | 평가 결과 |
+| [docs/grading.md](docs/grading.md) | 채점 기준 |
+| [docs/user_test.md](docs/user_test.md) | 사용자 테스트 설계와 결과 |
+| [docs/arch_check.md](docs/arch_check.md) | 설계 대비 구현 점검 |
+| [docs/local_llm.md](docs/local_llm.md) | 로컬 LLM 실측 |
+| [docs/guard_rules.md](docs/guard_rules.md) | 가드 규칙 |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 공통 규칙 |
