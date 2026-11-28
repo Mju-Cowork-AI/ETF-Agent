@@ -182,5 +182,5 @@
 - [x] 재계획 루프 머지(AI Engineer, #47)
 - [x] D3 로컬 LLM 실측(계획 단계만, #53)
 - [ ] PPT 제출 시점(11-28 마감에 같이 내는지) 운영진 확인(AI Solutions Architect)
-- [ ] 11-28 오전 Data Scientist 릴리스 따라 하기
+- [x] 11-28 오전 Data Scientist 릴리스 따라 하기(`v1.3.1`, #77)
 - [ ] 11-30 하루 상한 올림·복구와 D10 결정(Cloud Engineer)

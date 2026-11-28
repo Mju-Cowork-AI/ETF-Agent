@@ -9,7 +9,7 @@
 API·DB는 Azure, 웹은 Cloudflare Pages에 있다. 아래 명령은 11-20에 실제로 실행한 것이다.
 비밀 값은 Key Vault(`kv-etf-agent-b084`)에만 있고, 앱은 관리 ID로 읽는다.
 
-> 지금 배포된 이미지는 `etf-agent-api:bd08d37`(`main`, 릴리스 `v1.3`, #74)다(11-27 확인). 태그는 배포한 `main` 커밋의 짧은 해시이고, `main`에 머지할 때마다 자동 배포가 새 태그로 바꾼다(아래 "자동 배포"). 지금 값은 `az containerapp show -g rg-etf-agent -n ca-etf-agent-api --query "properties.template.containers[0].image"`로 본다.
+> 지금 배포된 이미지는 `etf-agent-api:51eecc8`(`main`, 릴리스 `v1.3.1`, #77)다(11-28 확인). 태그는 배포한 `main` 커밋의 짧은 해시이고, `main`에 머지할 때마다 자동 배포가 새 태그로 바꾼다(아래 "자동 배포"). 지금 값은 `az containerapp show -g rg-etf-agent -n ca-etf-agent-api --query "properties.template.containers[0].image"`로 본다.
 
 ### 리소스
 
@@ -202,6 +202,46 @@ npx wrangler pages deploy dist --project-name etf-agent --branch main
 - 200건을 3일 내내 다 써도 실측 평균($0.0054)으로 약 $3.2, 기획서 상한 가정($0.042)으로 약 $25다. 질문과 상관없이 드는 인프라 비용은 하루 약 $0.6~1.1이다(11-21~26 실측)
 - 예비분을 $50로 잡으면 상한 가정으로도 하루 약 1,150건까지 된다. 크레딧 때문에 200건을 낮출 이유는 없다
 - **200건을 그대로 둔다.** 11-30 발표 당일에 올릴 값은 이 범위 안에서 정한다
+
+### 11-28 확인 (제출일, 릴리스 `v1.3.1`)
+
+릴리스 `v1.3.1`(#77, 문서만 바뀜)은 Data Scientist가 [git-flow.md](../../docs/git-flow.md) "릴리스" 절차로 올렸다(11-24 결정의 따라 해 보기). 그 뒤 Azure CLI와 배포 주소로 확인했다.
+
+- API: 이미지 `etf-agent-api:51eecc8`, 리비전 `ca-etf-agent-api--0000009`(11-28 11:33 KST, 복제본 1개, Healthy). `/health` 200(`db: ok`), 0.4초
+- 웹: <https://etf-agent.pages.dev> 200
+- 질문 2건(익명 토큰 → `POST /chat`): "KODEX 200 총보수 알려줘" 5.0초, "ETF 괴리율이 뭐야?" 5.3초, 둘 다 가드 통과
+- 같은 질문을 다시 넣으면 개념 질문은 1.8초(`note:cache_hit`), 조회 질문은 4.4초로 그대로다. 답변 캐시는 개념 질문(FAQ 단독)에만 있고 1시간 뒤 지워진다
+- `DAILY_QUESTION_LIMIT`은 `200` 그대로다
+
+### 11-30 발표 당일 절차 (하루 상한 올림 → 워밍업 → 복구)
+
+Cloud Engineer가 한다. `az login`이 되어 있고 `rg-etf-agent` 권한이 있으면 누구나 할 수 있다.
+
+```bash
+API=https://ca-etf-agent-api.wittyrock-5cacb91d.koreacentral.azurecontainerapps.io
+
+# 1) 상한 올림. 발표 시작 30분쯤 전, 리허설이 끝난 뒤에 한다
+az containerapp update -g rg-etf-agent -n ca-etf-agent-api --set-env-vars DAILY_QUESTION_LIMIT=1000
+az containerapp revision list -g rg-etf-agent -n ca-etf-agent-api \
+  --query "[?properties.active].{name:name,state:properties.runningState,health:properties.healthState}" -o table
+curl $API/health   # {"status":"ok","db":"ok"}
+
+# 2) 워밍업. 시연 질문을 한 번씩 넣는다(웹 화면에서 직접 해도 된다)
+TOKEN=$(curl -s -X POST $API/auth/anonymous | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+for Q in "<시연 질문 1>" "<시연 질문 2>"; do
+  curl -s -N -m 60 -X POST $API/chat -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d "{\"message\":\"$Q\"}" -o /dev/null -w "$Q → %{http_code} %{time_total}s\n"
+done
+curl -s -o /dev/null -w "web %{http_code}\n" https://etf-agent.pages.dev
+
+# 3) 복구. 발표가 끝난 뒤
+az containerapp update -g rg-etf-agent -n ca-etf-agent-api --set-env-vars DAILY_QUESTION_LIMIT=200
+```
+
+- **순서는 상한 올림 다음에 워밍업이다.** 환경변수를 바꾸면 새 리비전이 떠서 API가 재시작되고 메모리 캐시가 비워진다. 진행 중이던 답변도 끊기므로 발표 중에는 바꾸지 않는다.
+- 워밍업으로 빨라지는 것은 개념 질문(FAQ 단독) 답변뿐이고 1시간 동안만이다(위 11-28 확인). 조회·비교 질문은 답변을 캐시하지 않아 매번 실시간으로 만든다. 설명 수준이 다르면 캐시 키도 다르므로 시연 때 쓸 수준으로 넣는다.
+- 그날 질문 수는 DB에 있어 재시작해도 이어진다. 그래서 그날 질문이 이미 200건을 넘은 상태에서 200으로 복구하면, 자정(KST)까지 모든 질문이 안내 문구로 끝난다. 발표 뒤에도 그날 URL을 열어 둬야 하면 복구를 12-01 0시 뒤로 미룬다.
+- 올릴 값은 1,000건이다(Cloud Engineer, 11-28). 위 "하루 질문 상한 재계산" 범위(상한 가정으로 하루 약 1,150건) 안이고, 1,000건을 다 써도 상한 가정으로 약 $42다.
 
 ## AWS → Azure 대응표
 
